@@ -80,3 +80,21 @@ export interface ClinicalRecord {
     created_at: string;
     lead?: { full_name: string; wa_id: string }; // Joined
 }
+
+export interface SystemSettings {
+    id: string;
+    business_name: string;
+    primary_color: string;
+    secondary_color: string;
+    timezone: string;
+    currency: CurrencyCode;
+    whatsapp_enabled: boolean;
+    whatsapp_phone_id: string | null;
+    whatsapp_waba_id: string | null;
+    meta_pixel_id: string | null;
+    default_followup_days: number;
+    clinic_enabled: boolean;
+    appointments_enabled: boolean;
+    updated_at: string;
+    created_at: string;
+}
