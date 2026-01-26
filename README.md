@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CRM Óptica Lyon Visión
 
-## Getting Started
+Software CRM Single-Tenant desarrollado exclusivamente para Óptica Lyon Visión. Estrictamente privado.
 
-First, run the development server:
+## 🧱 Arquitectura
+- **Frontend**: Next.js 14 (App Router)
+- **UI**: TailwindCSS + shadcn/ui
+- **Base de Datos**: Supabase PostgreSQL
+- **Backend**: Supabase Edge Functions (WhatsApp Bot)
+- **Estado**: React Query + Context
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🚀 Despliegue en Vercel (Producción)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1.  Crear nuevo proyecto en Vercel e importar este repositorio.
+2.  Configurar **Variables de Entorno** en Vercel:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Descripción |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | URL de tu proyecto Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Key `anon` pública de Supabase |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3.  Desplegar.
 
-## Learn More
+## 🤖 Configuración del Bot (Supabase Edge Functions)
 
-To learn more about Next.js, take a look at the following resources:
+1.  Asegurarse de haber ejecutado `database/schema.sql` y `database/triggers.sql` en Supabase SQL Editor.
+2.  Desplegar funciones:
+    ```bash
+    supabase functions deploy whatsapp-inbound
+    ```
+3.  Configurar Secretos de Función (en Dashboard o CLI):
+    ```bash
+    supabase secrets set WHATSAPP_VERIFY_TOKEN="tu_token_verificacion"
+    supabase secrets set WHATSAPP_API_TOKEN="tu_token_meta_permanente"
+    supabase secrets set WHATSAPP_PHONE_ID="tu_id_telefono_meta"
+    ```
+4.  Configurar Webhook en Meta Developers apuntando a la URL de la función:
+    `https://[project-ref].supabase.co/functions/v1/whatsapp-inbound`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## ✅ Checklist de Entrega
+- [x] Base de Datos Completa + RLS
+- [x] Autenticación y Roles
+- [x] Dashboard Realtime
+- [x] Pipeline Kanban
+- [x] Agenda Semanal
+- [x] Historia Clínica (OD/OI)
+- [x] Registro de Ventas
+- [x] Bot de WhatsApp fase 1
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🛡️ Seguridad
+Este sistema utiliza **Row Level Security (RLS)**.
+- **Admin**: Acceso total.
+- **Vendedor**: Solo ve sus leads asignados o libres.
+- **Single-Tenant**: No existe lógica de multi-empresa. Los datos están aislados por diseño.
