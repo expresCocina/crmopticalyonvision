@@ -15,8 +15,8 @@ export default function AppointmentsPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
 
     // Simple Weekly Calendar Logic
-    const startDate = startOfWeek(selectedDate, { weekStartsOn: 1 }) // Monday start
-    const weekDays = Array.from({ length: 6 }).map((_, i) => addDays(startDate, i)) // Mon-Sat
+    const startDate = startOfWeek(selectedDate, { weekStartsOn: 1 })
+    const weekDays = Array.from({ length: 6 }).map((_, i) => addDays(startDate, i))
 
     if (loading) {
         return (
@@ -27,10 +27,10 @@ export default function AppointmentsPage() {
     }
 
     return (
-        <div className="h-full flex flex-col space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="h-full flex flex-col space-y-3 md:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Agenda de Citas</h2>
+                    <h2 className="text-xl md:text-2xl font-bold tracking-tight">Agenda de Citas</h2>
                     <p className="text-sm text-muted-foreground">
                         {format(selectedDate, "MMMM yyyy", { locale: es })}
                     </p>
@@ -38,19 +38,19 @@ export default function AppointmentsPage() {
 
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild>
-                        <button className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:opacity-90 transition-opacity">
+                        <button className="w-full sm:w-auto bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity min-h-[44px]">
                             <Plus className="h-4 w-4" />
                             Nueva Cita
                         </button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
+                    <DialogContent className="w-[95vw] max-w-[500px] max-h-[90vh] overflow-y-auto">
                         <AppointmentForm onSuccess={() => setIsDialogOpen(false)} />
                     </DialogContent>
                 </Dialog>
             </div>
 
-            {/* Week Grid */}
-            <div className="grid grid-cols-6 gap-4 h-full overflow-hidden">
+            {/* Week Grid - Responsive */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4 h-full overflow-hidden">
                 {weekDays.map((date) => {
                     const dayAppointments = appointments.filter(app =>
                         isSameDay(parseISO(app.scheduled_at), date)
@@ -58,12 +58,12 @@ export default function AppointmentsPage() {
                     const isToday = isSameDay(date, new Date())
 
                     return (
-                        <div key={date.toString()} className={`flex flex-col h-full rounded-xl border ${isToday ? 'border-primary/50 bg-primary/5' : 'border-border bg-card'}`}>
-                            <div className={`p-3 text-center border-b ${isToday ? 'border-primary/20' : 'border-border'}`}>
+                        <div key={date.toString()} className={`flex flex-col h-full min-h-[200px] md:min-h-0 rounded-xl border ${isToday ? 'border-primary/50 bg-primary/5' : 'border-border bg-card'}`}>
+                            <div className={`p-2 md:p-3 text-center border-b ${isToday ? 'border-primary/20' : 'border-border'}`}>
                                 <div className="text-xs font-medium text-muted-foreground uppercase">
                                     {format(date, 'EEE', { locale: es })}
                                 </div>
-                                <div className={`text-xl font-bold ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                                <div className={`text-lg md:text-xl font-bold ${isToday ? 'text-primary' : 'text-foreground'}`}>
                                     {format(date, 'd')}
                                 </div>
                             </div>
@@ -82,7 +82,7 @@ export default function AppointmentsPage() {
                                                 <Clock className="h-3 w-3" />
                                                 {format(parseISO(app.scheduled_at), 'HH:mm')}
                                             </div>
-                                            <div className="font-medium text-sm truncate leading-tight">
+                                            <div className="font-medium text-xs md:text-sm truncate leading-tight">
                                                 {/* @ts-ignore join */}
                                                 {app.leads?.full_name || 'Prospecto'}
                                             </div>
@@ -93,8 +93,8 @@ export default function AppointmentsPage() {
                                             </div>
                                             <div className="pt-1 flex flex-wrap gap-1">
                                                 <span className={`text-[9px] px-1.5 py-0.5 rounded-full border ${app.status === 'confirmada' ? 'bg-green-100 text-green-700 border-green-200' :
-                                                    app.status === 'pendiente' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                                                        'bg-gray-100 text-gray-600'
+                                                        app.status === 'pendiente' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                                                            'bg-gray-100 text-gray-600'
                                                     }`}>
                                                     {app.status}
                                                 </span>

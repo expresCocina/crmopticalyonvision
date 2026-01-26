@@ -25,21 +25,22 @@ export default function PipelinePage() {
     }
 
     return (
-        <div className="h-full flex flex-col space-y-4">
-            <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold tracking-tight">Pipeline de Ventas</h2>
+        <div className="h-full flex flex-col space-y-3 md:space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <h2 className="text-xl md:text-2xl font-bold tracking-tight">Pipeline de Ventas</h2>
                 <div className="text-sm text-muted-foreground">
                     {leads.length} leads en total
                 </div>
             </div>
 
-            <div className="flex-1 overflow-x-auto">
-                <div className="flex h-full gap-4 pb-4 min-w-[1200px]">
+            {/* Mobile: Stack columns vertically, Desktop: Horizontal scroll */}
+            <div className="flex-1 overflow-x-auto overflow-y-auto">
+                <div className="flex flex-col md:flex-row h-full gap-3 md:gap-4 pb-4 md:min-w-[1200px]">
                     {COLUMNS.map((col) => {
                         const columnLeads = leads.filter(l => l.status === col.id)
 
                         return (
-                            <div key={col.id} className="w-80 flex-none flex flex-col gap-4">
+                            <div key={col.id} className="w-full md:w-80 md:flex-none flex flex-col gap-3 md:gap-4">
                                 <div className="flex items-center justify-between px-2">
                                     <span className="font-semibold text-sm text-muted-foreground">{col.label}</span>
                                     <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
@@ -47,16 +48,16 @@ export default function PipelinePage() {
                                     </span>
                                 </div>
 
-                                <div className="bg-muted/30 rounded-lg p-2 h-full border border-dashed border-border/50 flex flex-col gap-2 overflow-y-auto">
+                                <div className="bg-muted/30 rounded-lg p-2 min-h-[100px] md:h-full border border-dashed border-border/50 flex flex-col gap-2 overflow-y-auto">
                                     {columnLeads.map((lead) => (
-                                        <Card key={lead.id} className="cursor-grab hover:shadow-md transition-shadow hover:border-primary/50">
+                                        <Card key={lead.id} className="cursor-grab hover:shadow-md transition-shadow hover:border-primary/50 min-h-[60px]">
                                             <CardHeader className="p-3 space-y-1">
-                                                <div className="flex justify-between items-start">
-                                                    <CardTitle className="text-sm font-medium leading-none truncate">
+                                                <div className="flex justify-between items-start gap-2">
+                                                    <CardTitle className="text-sm font-medium leading-none truncate flex-1">
                                                         {lead.full_name || lead.wa_id}
                                                     </CardTitle>
                                                     {lead.source === 'whatsapp' && (
-                                                        <span className="text-[10px] bg-green-100 text-green-800 px-1 rounded">WA</span>
+                                                        <span className="text-[10px] bg-green-100 text-green-800 px-1 rounded flex-shrink-0">WA</span>
                                                     )}
                                                 </div>
                                                 <p className="text-xs text-muted-foreground truncate">

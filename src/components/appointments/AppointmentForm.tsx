@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, Calendar as CalendarIcon, Clock } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useLeads } from '@/hooks/useLeads'
 
@@ -54,15 +54,15 @@ export function AppointmentForm({ onSuccess }: { onSuccess: () => void }) {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <h3 className="font-semibold text-lg">Nueva Cita</h3>
-                <p className="text-sm text-muted-foreground">Agendar cita manual para un cliente existente.</p>
+                <h3 className="font-semibold text-base md:text-lg">Nueva Cita</h3>
+                <p className="text-xs md:text-sm text-muted-foreground">Agendar cita manual para un cliente existente.</p>
             </div>
 
             <div className="space-y-2">
                 <label className="text-sm font-medium">Paciente (Lead)</label>
                 <select
                     name="lead_id"
-                    className="w-full p-2 border rounded text-sm bg-background"
+                    className="w-full p-2 md:p-3 border rounded text-sm bg-background min-h-[44px]"
                     onChange={handleChange}
                     value={formData.lead_id}
                     disabled={loadingLeads}
@@ -83,7 +83,7 @@ export function AppointmentForm({ onSuccess }: { onSuccess: () => void }) {
                     <input
                         name="scheduled_at"
                         type="datetime-local"
-                        className="w-full p-2 border rounded text-sm bg-background"
+                        className="w-full p-2 md:p-3 border rounded text-sm bg-background min-h-[44px]"
                         onChange={handleChange}
                         required
                     />
@@ -92,7 +92,7 @@ export function AppointmentForm({ onSuccess }: { onSuccess: () => void }) {
                     <label className="text-sm font-medium">Motivo</label>
                     <select
                         name="reason"
-                        className="w-full p-2 border rounded text-sm bg-background"
+                        className="w-full p-2 md:p-3 border rounded text-sm bg-background min-h-[44px]"
                         onChange={handleChange}
                         value={formData.reason}
                     >
@@ -109,12 +109,12 @@ export function AppointmentForm({ onSuccess }: { onSuccess: () => void }) {
                 <textarea
                     name="notes"
                     placeholder="Detalles adicionales..."
-                    className="w-full p-2 border rounded text-sm bg-background min-h-[80px]"
+                    className="w-full p-2 md:p-3 border rounded text-sm bg-background min-h-[80px]"
                     onChange={handleChange}
                 />
             </div>
 
-            <button type="submit" disabled={saving || loadingLeads} className="w-full bg-primary text-primary-foreground py-2 rounded-md font-bold flex items-center justify-center gap-2">
+            <button type="submit" disabled={saving || loadingLeads} className="w-full bg-primary text-primary-foreground py-3 rounded-md font-bold flex items-center justify-center gap-2 min-h-[44px]">
                 {saving ? <Loader2 className="animate-spin h-4 w-4" /> : "Confirmar Cita"}
             </button>
         </form>

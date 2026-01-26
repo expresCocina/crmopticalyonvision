@@ -15,9 +15,9 @@ export default function DashboardPage() {
     }).format(totalSales)
 
     return (
-        <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {/* KPI Cards */}
+        <div className="space-y-4 md:space-y-6">
+            {/* KPI Cards - Responsive Grid */}
+            <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
@@ -26,7 +26,7 @@ export default function DashboardPage() {
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{formattedSales}</div>
+                        <div className="text-xl md:text-2xl font-bold">{formattedSales}</div>
                         <p className="text-xs text-muted-foreground">
                             Actualizado en tiempo real
                         </p>
@@ -41,7 +41,7 @@ export default function DashboardPage() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">+{newLeads}</div>
+                        <div className="text-xl md:text-2xl font-bold">+{newLeads}</div>
                         <p className="text-xs text-muted-foreground">
                             Potenciales clientes sin contactar
                         </p>
@@ -56,7 +56,7 @@ export default function DashboardPage() {
                         <MessageSquare className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{activeChats}</div>
+                        <div className="text-xl md:text-2xl font-bold">{activeChats}</div>
                         <p className="text-xs text-muted-foreground">
                             Mensajes recientes
                         </p>
@@ -71,7 +71,7 @@ export default function DashboardPage() {
                         <ShoppingBag className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{pendingDeliveries}</div>
+                        <div className="text-xl md:text-2xl font-bold">{pendingDeliveries}</div>
                         <p className="text-xs text-muted-foreground">
                             Órdenes pagadas no entregadas
                         </p>
@@ -79,38 +79,38 @@ export default function DashboardPage() {
                 </Card>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-4">
+            {/* Charts Section - Stack on Mobile */}
+            <div className="grid gap-3 md:gap-4 grid-cols-1 lg:grid-cols-7">
+                <Card className="lg:col-span-4">
                     <CardHeader>
-                        <CardTitle>Resumen de Ventas</CardTitle>
+                        <CardTitle className="text-base md:text-lg">Resumen de Ventas</CardTitle>
                     </CardHeader>
                     <CardContent className="pl-2">
-                        <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                            {/* Chart Placeholder */}
+                        <div className="h-[200px] md:h-[250px] flex items-center justify-center text-muted-foreground text-sm">
                             Gráfico de Ventas (Recharts / Tremor)
                         </div>
                     </CardContent>
                 </Card>
-                <Card className="col-span-3">
+
+                <Card className="lg:col-span-3">
                     <CardHeader>
-                        <CardTitle>Actividad Reciente</CardTitle>
+                        <CardTitle className="text-base md:text-lg">Actividad Reciente</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {/* Dummy Activity List */}
                             <div className="flex items-center">
-                                <div className="ml-4 space-y-1">
-                                    <p className="text-sm font-medium leading-none">Juan Pérez</p>
-                                    <p className="text-sm text-muted-foreground">Nuevo Lead - WhatsApp</p>
+                                <div className="ml-4 space-y-1 flex-1 min-w-0">
+                                    <p className="text-sm font-medium leading-none truncate">Juan Pérez</p>
+                                    <p className="text-xs text-muted-foreground truncate">Nuevo Lead - WhatsApp</p>
                                 </div>
-                                <div className="ml-auto font-medium text-xs text-muted-foreground">Hace 2m</div>
+                                <div className="ml-auto font-medium text-xs text-muted-foreground flex-shrink-0">Hace 2m</div>
                             </div>
                             <div className="flex items-center">
-                                <div className="ml-4 space-y-1">
-                                    <p className="text-sm font-medium leading-none">Maria Gomez</p>
-                                    <p className="text-sm text-muted-foreground">Compra finalizada</p>
+                                <div className="ml-4 space-y-1 flex-1 min-w-0">
+                                    <p className="text-sm font-medium leading-none truncate">Maria Gomez</p>
+                                    <p className="text-xs text-muted-foreground truncate">Compra finalizada</p>
                                 </div>
-                                <div className="ml-auto font-medium text-xs text-primary">+ $450,000</div>
+                                <div className="ml-auto font-medium text-xs text-primary flex-shrink-0">+ $450,000</div>
                             </div>
                         </div>
                     </CardContent>
