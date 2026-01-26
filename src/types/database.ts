@@ -4,6 +4,7 @@ export type ChannelSource = 'whatsapp' | 'meta_ads' | 'google_ads' | 'tiktok_ads
 export type MsgDirection = 'inbound' | 'outbound';
 export type MessageStatus = 'sent' | 'delivered' | 'read' | 'failed';
 export type CurrencyCode = 'COP' | 'USD' | 'MXN';
+export type AppointmentStatus = 'pendiente' | 'confirmada' | 'cancelada' | 'completada' | 'no_asistio';
 
 export interface Profile {
     id: string;
@@ -50,4 +51,32 @@ export interface Purchase {
     delivery_date: string | null;
     is_delivered: boolean;
     created_at: string;
+}
+
+export interface Appointment {
+    id: string;
+    lead_id: string;
+    scheduled_at: string;
+    status: AppointmentStatus;
+    reason: string | null;
+    notes: string | null;
+    created_at: string;
+    created_by: string | null;
+}
+
+export interface RxData {
+    od: { sph: string; cyl: string; axis: string; add?: string };
+    oi: { sph: string; cyl: string; axis: string; add?: string };
+}
+
+export interface ClinicalRecord {
+    id: string;
+    lead_id: string;
+    optometrist_id: string | null;
+    description: string | null;
+    rx_data: RxData;
+    diagnosis: string | null;
+    recommendations: string | null;
+    created_at: string;
+    lead?: { full_name: string; wa_id: string }; // Joined
 }
