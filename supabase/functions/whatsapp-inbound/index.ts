@@ -115,10 +115,10 @@ serve(async (req) => {
                 console.log(`Created new lead: ${leadId}`)
             }
 
-            // 2. Insert Message
+            // 2. Insert Message (using upsert to handle Meta's duplicate webhook retries)
             const { error: messageError } = await supabase
                 .from('messages')
-                .insert({
+                .upsert({
                     lead_id: leadId,
                     wa_message_id,
                     content: messageContent,
@@ -126,14 +126,17 @@ serve(async (req) => {
                     direction: 'inbound',
                     status: 'delivered',
                     created_at: new Date(parseInt(timestamp) * 1000).toISOString()
+                }, {
+                    onConflict: 'wa_message_id',
+                    ignoreDuplicates: true
                 })
 
             if (messageError) {
-                console.error('Error inserting message:', messageError)
+                console.error('Error upserting message:', messageError)
                 throw messageError
             }
 
-            console.log('Message saved successfully')
+            console.log('Message saved successfully (or already existed)')
 
             // 3. Check if auto-response is enabled
             const { data: settings } = await supabase
