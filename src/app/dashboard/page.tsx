@@ -5,10 +5,12 @@ import { Users, DollarSign, MessageSquare, ShoppingBag } from 'lucide-react'
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics"
 
 import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, TooltipProps } from 'recharts'
 
 export default function DashboardPage() {
-    const { totalSales, newLeads, activeChats, pendingDeliveries, recentActivity } = useDashboardMetrics()
+    const { totalSales, newLeads, activeChats, pendingDeliveries, recentActivity, salesChartData } = useDashboardMetrics()
 
     // ... (keep currency formatter) ...
     const formattedSales = new Intl.NumberFormat('es-CO', {
@@ -16,6 +18,21 @@ export default function DashboardPage() {
         currency: 'COP',
         maximumFractionDigits: 0
     }).format(totalSales)
+
+    // Custom Tooltip for Chart
+    const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className="bg-card border p-2 rounded shadow-md text-xs">
+                    <p className="font-bold mb-1">Día {label}</p>
+                    <p className="text-primary">
+                        {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(payload[0].value as number)}
+                    </p>
+                </div>
+            )
+        }
+        return null
+    }
 
     return (
         <div className="space-y-4 md:space-y-6">
@@ -101,8 +118,33 @@ export default function DashboardPage() {
                         <CardTitle className="text-base md:text-lg">Resumen de Ventas</CardTitle>
                     </CardHeader>
                     <CardContent className="pl-2">
-                        <div className="h-[200px] md:h-[250px] flex items-center justify-center text-muted-foreground text-sm">
-                            Gráfico de Ventas (Recharts / Tremor)
+                        <div className="h-[200px] md:h-[250px] w-full">
+                            {salesChartData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={salesChartData}>
+                                        <XAxis
+                                            dataKey="date"
+                                            stroke="#888888"
+                                            fontSize={12}
+                                            tickLine={false}
+                                            axisLine={false}
+                                        />
+                                        <YAxis
+                                            stroke="#888888"
+                                            fontSize={12}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            tickFormatter={(value) => `$${value}`}
+                                        />
+                                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+                                        <Bar dataKey="total" fill="#FFD700" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                                    No hay ventas registradas este mes
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
