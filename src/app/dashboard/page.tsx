@@ -4,10 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, DollarSign, MessageSquare, ShoppingBag } from 'lucide-react'
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics"
 
-export default function DashboardPage() {
-    const { totalSales, newLeads, activeChats, pendingDeliveries } = useDashboardMetrics()
+import { formatDistanceToNow } from 'date-fns'
+import { es } from 'date-fns/locale'
 
-    // Format currency
+export default function DashboardPage() {
+    const { totalSales, newLeads, activeChats, pendingDeliveries, recentActivity } = useDashboardMetrics()
+
+    // ... (keep currency formatter) ...
     const formattedSales = new Intl.NumberFormat('es-CO', {
         style: 'currency',
         currency: 'COP',
@@ -16,8 +19,14 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-4 md:space-y-6">
+            {/* ... (keep KPI Cards section unchanged) ... */}
+
             {/* KPI Cards - Responsive Grid */}
             <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+                {/* Note: I am not replacing the KPI cards code in this block to save tokens, 
+                   assuming the user's existing file has them. 
+                   Wait, I need to be careful. limiting the replacement range.
+               */}
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
@@ -104,20 +113,28 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            <div className="flex items-center">
-                                <div className="ml-4 space-y-1 flex-1 min-w-0">
-                                    <p className="text-sm font-medium leading-none truncate">Juan Pérez</p>
-                                    <p className="text-xs text-muted-foreground truncate">Nuevo Lead - WhatsApp</p>
-                                </div>
-                                <div className="ml-auto font-medium text-xs text-muted-foreground flex-shrink-0">Hace 2m</div>
-                            </div>
-                            <div className="flex items-center">
-                                <div className="ml-4 space-y-1 flex-1 min-w-0">
-                                    <p className="text-sm font-medium leading-none truncate">Maria Gomez</p>
-                                    <p className="text-xs text-muted-foreground truncate">Compra finalizada</p>
-                                </div>
-                                <div className="ml-auto font-medium text-xs text-primary flex-shrink-0">+ $450,000</div>
-                            </div>
+                            {recentActivity && recentActivity.length > 0 ? (
+                                recentActivity.map((activity, i) => (
+                                    <div key={i} className="flex items-center">
+                                        <div className="ml-4 space-y-1 flex-1 min-w-0">
+                                            <p className="text-sm font-medium leading-none truncate">{activity.title}</p>
+                                            <p className="text-xs text-muted-foreground truncate">{activity.subtitle}</p>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-0.5">
+                                            <div className="text-xs text-muted-foreground flex-shrink-0">
+                                                {formatDistanceToNow(new Date(activity.date), { addSuffix: true, locale: es })}
+                                            </div>
+                                            {activity.amount && (
+                                                <div className="font-medium text-xs text-green-600 flex-shrink-0">
+                                                    + ${new Intl.NumberFormat('es-CO').format(activity.amount)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-sm text-center text-muted-foreground py-4">No hay actividad reciente</p>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
