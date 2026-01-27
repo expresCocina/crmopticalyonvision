@@ -17,12 +17,13 @@ interface BulkMessageDialogProps {
 
 export function BulkMessageDialog({ open, onOpenChange, selectedCount, onSend }: BulkMessageDialogProps) {
     const [message, setMessage] = useState('')
-    const [selectedTemplate, setSelectedTemplate] = useState<TemplateKey | ''>('')
+    const [selectedTemplate, setSelectedTemplate] = useState<TemplateKey | undefined>(undefined)
     const [sending, setSending] = useState(false)
 
     const handleTemplateSelect = (templateKey: string) => {
-        if (!templateKey) {
-            setSelectedTemplate('')
+        if (!templateKey || templateKey === 'none') {
+            setSelectedTemplate(undefined)
+            setMessage('')
             return
         }
 
@@ -41,7 +42,7 @@ export function BulkMessageDialog({ open, onOpenChange, selectedCount, onSend }:
 
         if (success) {
             setMessage('')
-            setSelectedTemplate('')
+            setSelectedTemplate(undefined)
             onOpenChange(false)
         }
     }
@@ -62,12 +63,12 @@ export function BulkMessageDialog({ open, onOpenChange, selectedCount, onSend }:
                         <label className="text-sm font-medium">
                             Plantilla (opcional)
                         </label>
-                        <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
+                        <Select value={selectedTemplate || 'none'} onValueChange={handleTemplateSelect}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Seleccionar plantilla..." />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">Sin plantilla</SelectItem>
+                                <SelectItem value="none">Sin plantilla</SelectItem>
                                 {Object.entries(messageTemplates).map(([key, template]) => (
                                     <SelectItem key={key} value={key}>
                                         {template.name}
