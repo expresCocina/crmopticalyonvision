@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,12 +12,20 @@ import { Badge } from '@/components/ui/badge'
 import { Send, Users } from 'lucide-react'
 import { useTemplates } from '@/hooks/useTemplates'
 import { useCampaigns } from '@/hooks/useCampaigns'
-import { useCustomers } from '@/hooks/useCustomers'
+import { createClient } from '@/lib/supabase/client'
+
+interface Lead {
+    id: string
+    wa_id: string
+    full_name: string | null
+    status: string
+}
 
 export function CampaignBuilder() {
     const { templates } = useTemplates()
     const { createCampaign, sendCampaign } = useCampaigns()
-    const { customers } = useCustomers('all')
+    const [customers, setCustomers] = useState<Lead[]>([])
+
 
     const [campaignName, setCampaignName] = useState('')
     const [selectedTemplate, setSelectedTemplate] = useState<string>('none')
@@ -34,6 +42,22 @@ export function CampaignBuilder() {
         { value: 'cliente', label: 'Cliente' },
         { value: 'recurrente', label: 'Recurrente' }
     ]
+
+    // Fetch customers
+    useEffect(() => {
+        const fetchCustomers = async () => {
+            const supabase = createClient()
+            const { data } = await supabase
+                .from('leads')
+                .select('id, wa_id, full_name, status')
+                .order('last_interaction', { ascending: false })
+
+            if (data) {
+                setCustomers(data)
+            }
+        }
+        fetchCustomers()
+    }, [])
 
     const handleTemplateSelect = (templateId: string) => {
         setSelectedTemplate(templateId)
@@ -59,6 +83,7 @@ export function CampaignBuilder() {
         if (selectedStatuses.length === 0) return customers
         return customers.filter(c => selectedStatuses.includes(c.status))
     }, [customers, selectedStatuses])
+
 
     const handleSend = async () => {
         if (!campaignName.trim() || !message.trim() || filteredCustomers.length === 0) return
