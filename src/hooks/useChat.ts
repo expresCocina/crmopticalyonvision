@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 
 export function useChat() {
     const [leads, setLeads] = useState<Lead[]>([])
-    const [activeLeadId, setActiveLeadId] = useState<string | null>(null)
+    const [activeLeadId, setActiveLeadIdState] = useState<string | null>(null)
     const [messages, setMessages] = useState<Message[]>([])
     const [loadingLeads, setLoadingLeads] = useState(true)
     const [loadingMessages, setLoadingMessages] = useState(false)
@@ -109,6 +109,25 @@ export function useChat() {
                 last_interaction: new Date().toISOString(),
                 // Optional: status update if needed (e.g. stop bot)
             }).eq('id', activeLeadId)
+        }
+    }
+
+    // 4. Set Active Lead & Mark as Read (Pipeline Move)
+    const setActiveLeadId = async (id: string | null) => {
+        setActiveLeadIdState(id)
+        if (!id) return
+
+        const lead = leads.find(l => l.id === id)
+        if (lead && lead.status === 'nuevo') {
+            // Move from 'nuevo' to 'interesado' (or 'contactado' if we had it) to clear the notification
+            // 'interesado' implies we are looking at it.
+            const { error } = await supabase
+                .from('leads')
+                .update({ status: 'interesado' })
+                .eq('id', id)
+
+            if (error) console.error('Error updating lead status:', error)
+            // No need for manual state update as Realtime subscription will handle it
         }
     }
 
