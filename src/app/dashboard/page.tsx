@@ -5,7 +5,7 @@ import { Users, DollarSign, MessageSquare, ShoppingBag } from 'lucide-react'
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics"
 
 import { formatDistanceToNow } from 'date-fns'
-import { formatDistanceToNow } from 'date-fns'
+
 import { es } from 'date-fns/locale'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, TooltipProps } from 'recharts'
 
