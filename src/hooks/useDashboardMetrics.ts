@@ -23,25 +23,31 @@ export function useDashboardMetrics() {
                 { count: messagesCount },
                 { count: deliveriesCount },
                 { data: recentLeads },
-                { data: recentSales }
+                { data: recentSales },
+                { data: recentAppointments },
+                { data: recentClinicalRecords },
+                { data: recentOrderUpdates }
             ] = await Promise.all([
                 supabase.from('leads').select('*', { count: 'exact', head: true }).eq('status', 'nuevo'),
                 supabase.from('purchases').select('amount, created_at').gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()), // This month
                 supabase.from('messages').select('*', { count: 'exact', head: true }).eq('direction', 'inbound').eq('status', 'delivered'), // Unread/Inbound logic simulation
                 supabase.from('purchases').select('*', { count: 'exact', head: true }).eq('is_delivered', false),
-                // Recent Activity Fetching
-                supabase.from('leads').select('id, full_name, wa_id, created_at, status').order('created_at', { ascending: false }).limit(5),
-                supabase.from('purchases').select('id, amount, created_at, leads(full_name)').order('created_at', { ascending: false }).limit(5)
+                // Recent Activity Fetching - ALL TYPES
+                supabase.from('leads').select('id, full_name, wa_id, created_at, status').order('created_at', { ascending: false }).limit(10),
+                supabase.from('purchases').select('id, amount, created_at, order_status, leads(full_name)').order('created_at', { ascending: false }).limit(10),
+                supabase.from('appointments').select('id, created_at, scheduled_at, reason, leads(full_name)').order('created_at', { ascending: false }).limit(10),
+                supabase.from('clinical_records').select('id, created_at, diagnosis, leads(full_name)').order('created_at', { ascending: false }).limit(10),
+                supabase.from('purchases').select('id, created_at, order_status, updated_at, leads(full_name)').not('order_status', 'is', null).order('updated_at', { ascending: false }).limit(10)
             ])
 
             const totalSales = salesData?.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0) || 0
 
-            // Process Recent Activity
+            // Process Recent Activity - ALL TYPES
             const leads = (recentLeads || []).map(l => ({
                 id: l.id,
                 type: 'lead',
                 title: l.full_name || l.wa_id,
-                subtitle: l.status === 'nuevo' ? 'Nuevo Lead - WhatsApp' : 'Lead Actualizado',
+                subtitle: l.status === 'nuevo' ? '✨ Nuevo Lead - WhatsApp' : 'Lead Actualizado',
                 date: l.created_at,
                 amount: null
             }))
@@ -50,14 +56,45 @@ export function useDashboardMetrics() {
                 id: s.id,
                 type: 'sale',
                 title: (s.leads as any)?.full_name || 'Cliente',
-                subtitle: 'Compra finalizada',
+                subtitle: '💰 Compra finalizada',
                 date: s.created_at,
                 amount: s.amount
             }))
 
-            const recentActivity = [...leads, ...sales]
+            const appointments = (recentAppointments || []).map(a => ({
+                id: a.id,
+                type: 'appointment',
+                title: (a.leads as any)?.full_name || 'Cliente',
+                subtitle: `📅 Cita: ${a.reason || 'Consulta'}`,
+                date: a.created_at,
+                amount: null
+            }))
+
+            const clinicalRecords = (recentClinicalRecords || []).map(c => ({
+                id: c.id,
+                type: 'clinical',
+                title: (c.leads as any)?.full_name || 'Cliente',
+                subtitle: `🩺 Registro Clínico: ${c.diagnosis || 'Examen'}`,
+                date: c.created_at,
+                amount: null
+            }))
+
+            const orderUpdates = (recentOrderUpdates || []).map(o => ({
+                id: o.id,
+                type: 'order',
+                title: (o.leads as any)?.full_name || 'Cliente',
+                subtitle: `📦 Orden: ${o.order_status === 'pendiente' ? 'Pendiente' :
+                    o.order_status === 'en_estudio' ? 'En Estudio' :
+                        o.order_status === 'en_entrega' ? 'En Entrega' :
+                            o.order_status === 'entregada' ? '✅ Entregada' : 'Actualizada'
+                    }`,
+                date: o.updated_at || o.created_at,
+                amount: null
+            }))
+
+            const recentActivity = [...leads, ...sales, ...appointments, ...clinicalRecords, ...orderUpdates]
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .slice(0, 5)
+                .slice(0, 10) // Show top 10 most recent activities
 
             // Process Sales Chart Data (Daily Totals for Current Month)
             const salesMap = new Map<string, number>()
@@ -94,11 +131,13 @@ export function useDashboardMetrics() {
 
         fetchMetrics()
 
-        // Realtime Subscriptions for counters
+        // Realtime Subscriptions for counters and activity
         const channel = supabase.channel('dashboard-metrics')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => fetchMetrics())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'purchases' }, () => fetchMetrics())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => fetchMetrics())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => fetchMetrics())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'clinical_records' }, () => fetchMetrics())
             .subscribe()
 
         return () => {
