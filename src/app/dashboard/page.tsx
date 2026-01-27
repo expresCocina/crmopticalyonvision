@@ -7,7 +7,7 @@ import { useDashboardMetrics } from "@/hooks/useDashboardMetrics"
 import { formatDistanceToNow } from 'date-fns'
 
 import { es } from 'date-fns/locale'
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, TooltipProps } from 'recharts'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts'
 
 export default function DashboardPage() {
     const { totalSales, newLeads, activeChats, pendingDeliveries, recentActivity, salesChartData } = useDashboardMetrics()
@@ -20,7 +20,7 @@ export default function DashboardPage() {
     }).format(totalSales)
 
     // Custom Tooltip for Chart
-    const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+    const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             return (
                 <div className="bg-card border p-2 rounded shadow-md text-xs">
