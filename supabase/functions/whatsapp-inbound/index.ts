@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { detectAppointmentIntent, formatDateForUser, formatTimeForUser } from './appointment-parser.ts'
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -195,7 +196,7 @@ serve(async (req) => {
                     })
                 }
 
-                // Helper to send message with error handling
+                // Helper to send message with error handling (DECLARED FIRST)
                 const sendWhatsApp = async (text: string) => {
                     const phoneNumberId = Deno.env.get('WHATSAPP_PHONE_ID')
                     const accessToken = Deno.env.get('WHATSAPP_API_TOKEN')
@@ -249,6 +250,151 @@ serve(async (req) => {
                         console.error('Network error sending WhatsApp message:', error)
                     }
                 }
+
+
+                // ========== APPOINTMENT BOOKING LOGIC ==========
+                const appointmentIntent = detectAppointmentIntent(messageContent)
+                console.log('Appointment intent detected:', appointmentIntent)
+
+                if (appointmentIntent.hasIntent) {
+                    // Check if we have both date and time
+                    if (appointmentIntent.date && appointmentIntent.time) {
+                        // Combine date and time
+                        const [hours, minutes] = appointmentIntent.time.split(':').map(Number)
+                        const appointmentDateTime = new Date(appointmentIntent.date)
+                        appointmentDateTime.setHours(hours, minutes, 0, 0)
+
+                        console.log('Checking availability for:', appointmentDateTime.toISOString())
+
+                        // Check availability using SQL function
+                        const { data: availabilityCheck, error: availError } = await supabase
+                            .rpc('check_appointment_availability', {
+                                requested_date: appointmentDateTime.toISOString(),
+                                duration_minutes: 30
+                            })
+
+                        if (availError) {
+                            console.error('Error checking availability:', availError)
+                        } else if (availabilityCheck && availabilityCheck.length > 0) {
+                            const isAvailable = availabilityCheck[0].available
+
+                            if (isAvailable) {
+                                // CREATE APPOINTMENT
+                                const { data: newAppointment, error: aptError } = await supabase
+                                    .from('appointments')
+                                    .insert({
+                                        lead_id: leadId,
+                                        appointment_date: appointmentDateTime.toISOString(),
+                                        appointment_type: appointmentIntent.appointmentType || 'examen_visual',
+                                        status: 'confirmada',
+                                        notes: `Agendada automáticamente vía WhatsApp: ${messageContent}`
+                                    })
+                                    .select()
+                                    .single()
+
+                                if (aptError) {
+                                    console.error('Error creating appointment:', aptError)
+                                } else {
+                                    console.log('Appointment created successfully:', newAppointment)
+
+                                    // UPDATE LEAD STATUS TO 'agendado'
+                                    await supabase
+                                        .from('leads')
+                                        .update({ status: 'agendado' })
+                                        .eq('id', leadId)
+
+                                    // SEND CONFIRMATION MESSAGE
+                                    const confirmationMessage = `✅ ¡Cita confirmada!
+
+📅 Fecha: ${formatDateForUser(appointmentIntent.date)}
+🕐 Hora: ${formatTimeForUser(appointmentIntent.time)}
+📍 Óptica Lyon Visión
+
+Te esperamos! Si necesitas cambiar tu cita, avísanos.`
+
+                                    await sendWhatsApp(confirmationMessage)
+
+                                    // Log appointment creation
+                                    await supabase.from('messages').insert({
+                                        lead_id: leadId,
+                                        content: '🤖 Sistema: Cita agendada automáticamente',
+                                        direction: 'system',
+                                        type: 'text',
+                                        status: 'delivered'
+                                    })
+
+                                    return new Response(JSON.stringify({ status: 'ok', appointment_created: true }), {
+                                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                                        status: 200,
+                                    })
+                                }
+                            } else {
+                                // NO AVAILABILITY - Suggest alternative times
+                                const targetDate = appointmentIntent.date
+                                targetDate.setHours(0, 0, 0, 0)
+
+                                const { data: availableSlots, error: slotsError } = await supabase
+                                    .rpc('get_available_slots', {
+                                        target_date: targetDate.toISOString().split('T')[0],
+                                        start_hour: 9,
+                                        end_hour: 18,
+                                        slot_duration_minutes: 30
+                                    })
+
+                                if (!slotsError && availableSlots && availableSlots.length > 0) {
+                                    const availableOptions = availableSlots
+                                        .filter((slot: any) => slot.is_available)
+                                        .slice(0, 3)
+                                        .map((slot: any) => {
+                                            const slotTime = new Date(slot.slot_time)
+                                            const timeStr = `${slotTime.getHours().toString().padStart(2, '0')}:${slotTime.getMinutes().toString().padStart(2, '0')}`
+                                            return `• ${formatTimeForUser(timeStr)}`
+                                        })
+                                        .join('\n')
+
+                                    const alternativeMessage = `❌ Lo siento, ese horario ya está ocupado.
+
+¿Te sirve alguno de estos horarios disponibles?
+
+${availableOptions}
+
+Responde con el horario que prefieras.`
+
+                                    await sendWhatsApp(alternativeMessage)
+                                } else {
+                                    await sendWhatsApp('❌ Lo siento, ese horario no está disponible. ¿Podrías sugerir otro día u hora?')
+                                }
+
+                                return new Response(JSON.stringify({ status: 'ok', suggested_alternatives: true }), {
+                                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                                    status: 200,
+                                })
+                            }
+                        }
+                    } else if (appointmentIntent.date && !appointmentIntent.time) {
+                        // Has date but no time - ask for time
+                        await sendWhatsApp(`Perfecto! ¿A qué hora te gustaría agendar para el ${formatDateForUser(appointmentIntent.date)}?\n\nEjemplo: "3pm" o "15:00"`)
+                        return new Response(JSON.stringify({ status: 'ok', awaiting_time: true }), {
+                            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                            status: 200,
+                        })
+                    } else if (!appointmentIntent.date && appointmentIntent.time) {
+                        // Has time but no date - ask for date
+                        await sendWhatsApp(`Entendido, a las ${formatTimeForUser(appointmentIntent.time)}. ¿Qué día te gustaría agendar?\n\nEjemplo: "mañana", "lunes", "30 de enero"`)
+                        return new Response(JSON.stringify({ status: 'ok', awaiting_date: true }), {
+                            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                            status: 200,
+                        })
+                    } else {
+                        // Has intent but no date or time - ask for both
+                        await sendWhatsApp('¡Perfecto! ¿Qué día y hora te gustaría agendar?\n\nEjemplo: "mañana a las 3pm" o "lunes 29 a las 10am"')
+                        return new Response(JSON.stringify({ status: 'ok', awaiting_datetime: true }), {
+                            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                            status: 200,
+                        })
+                    }
+                }
+                // ========== END APPOINTMENT BOOKING LOGIC ==========
 
                 // Logic Flow
                 let responseText = ''
