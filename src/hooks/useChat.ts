@@ -89,26 +89,33 @@ export function useChat() {
     const sendMessage = async (content: string) => {
         if (!activeLeadId || !content.trim()) return
 
-        // Generic optimistic update could go here, but we rely on realtime for now
-        const { error } = await supabase.from('messages').insert({
-            lead_id: activeLeadId,
-            content: content,
-            direction: 'outbound',
-            type: 'text',
-            status: 'sent'
-        })
+        try {
+            // Call the whatsapp-outbound Edge Function to send the message
+            const { data, error } = await supabase.functions.invoke('whatsapp-outbound', {
+                body: {
+                    lead_id: activeLeadId,
+                    message: content
+                }
+            })
 
-        if (error) {
-            toast.error("No se pudo enviar el mensaje")
-            console.error(error)
-        } else {
-            // Update lead last_interaction manually or rely on trigger? 
-            // We have triggers? No, usually message insert should trigger lead update.
-            // Let's do it manually to be safe and fast.
-            await supabase.from('leads').update({
-                last_interaction: new Date().toISOString(),
-                // Optional: status update if needed (e.g. stop bot)
-            }).eq('id', activeLeadId)
+            if (error) {
+                console.error('Error calling whatsapp-outbound:', error)
+                toast.error("No se pudo enviar el mensaje a WhatsApp")
+                return
+            }
+
+            if (!data?.success) {
+                console.error('WhatsApp send failed:', data)
+                toast.error("Error al enviar mensaje a WhatsApp")
+                return
+            }
+
+            // Success - the Edge Function handles database insert and WhatsApp API call
+            console.log('Message sent successfully:', data)
+
+        } catch (err) {
+            console.error('Exception sending message:', err)
+            toast.error("Error inesperado al enviar mensaje")
         }
     }
 
