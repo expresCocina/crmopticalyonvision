@@ -79,22 +79,38 @@ export default function ChatPage() {
                                     key={lead.id}
                                     onClick={() => setActiveLeadId(lead.id)}
                                     className={cn(
-                                        "w-full text-left p-3 md:p-4 hover:bg-muted/50 transition-colors flex gap-3 min-h-[60px]",
+                                        "w-full text-left p-3 md:p-4 hover:bg-muted/50 transition-colors flex gap-3 min-h-[60px] relative",
                                         activeLeadId === lead.id && "bg-muted shadow-inner"
                                     )}
                                 >
+                                    {/* Unread/New Indicator */}
+                                    {lead.status === 'nuevo' && (
+                                        <span className="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-green-500" />
+                                    )}
+
                                     <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
                                         <User className="h-5 w-5 text-primary" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex justify-between items-baseline mb-1">
-                                            <span className="font-medium truncate text-sm">{lead.full_name || lead.wa_id}</span>
-                                            <span className="text-[10px] text-muted-foreground flex-shrink-0 ml-2">
+                                            <span className={cn(
+                                                "truncate text-sm",
+                                                lead.status === 'nuevo' ? "font-bold text-foreground" : "font-medium"
+                                            )}>
+                                                {lead.full_name || lead.wa_id}
+                                            </span>
+                                            <span className={cn(
+                                                "text-[10px] flex-shrink-0 ml-2",
+                                                lead.status === 'nuevo' ? "text-green-600 font-bold" : "text-muted-foreground"
+                                            )}>
                                                 {lead.last_interaction && format(parseISO(lead.last_interaction), 'HH:mm')}
                                             </span>
                                         </div>
-                                        <p className="text-xs text-muted-foreground truncate">
-                                            {lead.status === 'nuevo' ? '✨ Nuevo Lead' :
+                                        <p className={cn(
+                                            "text-xs truncate",
+                                            lead.status === 'nuevo' ? "text-foreground font-medium" : "text-muted-foreground"
+                                        )}>
+                                            {lead.status === 'nuevo' ? '✨ Nuevo Mensaje' :
                                                 lead.status === 'agendado' ? '📅 Agendado' :
                                                     lead.wa_id}
                                         </p>

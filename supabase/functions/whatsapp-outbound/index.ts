@@ -69,8 +69,8 @@ serve(async (req) => {
         }
 
         // Get WhatsApp credentials from environment
-        const WHATSAPP_TOKEN = Deno.env.get('WHATSAPP_ACCESS_TOKEN')
-        const PHONE_NUMBER_ID = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID')
+        const WHATSAPP_TOKEN = Deno.env.get('WHATSAPP_API_TOKEN')
+        const PHONE_NUMBER_ID = Deno.env.get('WHATSAPP_PHONE_ID')
 
         if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
             console.error('Missing WhatsApp credentials')

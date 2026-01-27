@@ -41,7 +41,9 @@ export default function DashboardPage() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-xl md:text-2xl font-bold">+{newLeads}</div>
+                        <div className={`text-xl md:text-2xl font-bold ${newLeads > 0 ? 'text-green-600' : ''}`}>
+                            +{newLeads}
+                        </div>
                         <p className="text-xs text-muted-foreground">
                             Potenciales clientes sin contactar
                         </p>
@@ -56,7 +58,9 @@ export default function DashboardPage() {
                         <MessageSquare className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-xl md:text-2xl font-bold">{activeChats}</div>
+                        <div className={`text-xl md:text-2xl font-bold ${activeChats > 0 ? 'text-blue-600' : ''}`}>
+                            {activeChats}
+                        </div>
                         <p className="text-xs text-muted-foreground">
                             Mensajes recientes
                         </p>
@@ -71,7 +75,9 @@ export default function DashboardPage() {
                         <ShoppingBag className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-xl md:text-2xl font-bold">{pendingDeliveries}</div>
+                        <div className={`text-xl md:text-2xl font-bold ${pendingDeliveries > 0 ? 'text-orange-600' : ''}`}>
+                            {pendingDeliveries}
+                        </div>
                         <p className="text-xs text-muted-foreground">
                             Órdenes pagadas no entregadas
                         </p>

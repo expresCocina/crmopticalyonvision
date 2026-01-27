@@ -74,7 +74,7 @@ serve(async (req) => {
             // 1. Upsert Lead
             const { data: existingLead } = await supabase
                 .from('leads')
-                .select('id, full_name')
+                .select('id, full_name, tags')
                 .eq('wa_id', wa_id)
                 .single()
 
@@ -145,9 +145,141 @@ serve(async (req) => {
                 .single()
 
             if (settings?.whatsapp_enabled) {
-                // TODO: Implement bot logic here
-                // For now, just log that bot is enabled
-                console.log('WhatsApp bot is enabled - auto-response logic can be added here')
+                // 4. Smart Bot Logic
+                const body = messageContent.trim().toLowerCase()
+                const currentTags = existingLead?.tags || []
+
+                // STOP CONDITION: If already handed off to human, ignore bot logic
+                if (currentTags.includes('bot_stop')) {
+                    console.log('Bot skipped: Lead has bot_stop tag')
+                    return new Response(JSON.stringify({ status: 'ok', note: 'bot_stopped' }), {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                        status: 200,
+                    })
+                }
+
+                // Helper to send message with error handling
+                const sendWhatsApp = async (text: string) => {
+                    const phoneNumberId = Deno.env.get('WHATSAPP_PHONE_ID')
+                    const accessToken = Deno.env.get('WHATSAPP_API_TOKEN')
+
+                    // Debug log
+                    console.log(`Attempting to send message to ${wa_id} using Phone ID: ${phoneNumberId}`)
+
+                    try {
+                        const response = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${accessToken}`,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                messaging_product: 'whatsapp',
+                                to: wa_id,
+                                type: 'text',
+                                text: { body: text }
+                            })
+                        })
+
+                        const data = await response.json()
+                        console.log('WhatsApp API Response:', response.status, JSON.stringify(data))
+
+                        if (!response.ok) {
+                            console.error('Failed to send WhatsApp message:', data)
+                            // Log failure to DB so user sees it
+                            await supabase.from('messages').insert({
+                                lead_id: leadId,
+                                content: text,
+                                type: 'text',
+                                direction: 'outbound',
+                                status: 'failed',
+                                wa_message_id: `error-${Date.now()}`
+                            })
+                            return
+                        }
+
+                        // Log success to DB
+                        await supabase.from('messages').insert({
+                            lead_id: leadId,
+                            content: text,
+                            type: 'text',
+                            direction: 'outbound',
+                            status: 'sent',
+                            wa_message_id: data.messages?.[0]?.id
+                        })
+
+                    } catch (error) {
+                        console.error('Network error sending WhatsApp message:', error)
+                    }
+                }
+
+                // Logic Flow
+                let responseText = ''
+                let shouldUpdateLead = false
+                let newStatus = ''
+                let tagToAdd = ''
+
+                // Greetings Keywords
+                const greetings = ['hola', 'buenos dias', 'buenas tardes', 'buenas noches', 'hi', 'start', 'inicio', 'menu']
+
+                // Handover Keywords
+                const humanKeywords = ['humano', 'asesor', 'persona', 'ayuda', 'hablar con alguien']
+
+                if (humanKeywords.some(k => body.includes(k)) || body === '9') {
+                    // HANDOVER CASE
+                    responseText = '👤 Te estoy contactando con un asesor humano. En breve te responderemos.'
+                    shouldUpdateLead = true
+                    newStatus = 'interesado'
+                    tagToAdd = 'bot_stop' // This stops the bot from replying further
+
+                } else if (['1', 'uno', 'examen'].includes(body)) {
+                    responseText = '👁️ ¡Excelente decisión! Para agendar tu *Examen Visual*:\n\n📅 Indícanos qué día y hora prefieres.\n📍 Estamos ubicados en [Tu Dirección].\n\n_Escribe "9" para hablar con un asesor si necesitas ayuda._'
+                    shouldUpdateLead = true
+                    newStatus = 'interesado'
+                    tagToAdd = 'Examen'
+
+                } else if (['2', 'dos', 'lentes'].includes(body)) {
+                    responseText = '👓 Entendido. Si tienes tu fórmula médica a la mano, puedes enviarnos una foto por aquí.\n\nSi no, escribe "1" para agendar examen.\n\n_Escribe "9" para hablar con un asesor._'
+                    shouldUpdateLead = true
+                    newStatus = 'interesado'
+                    tagToAdd = 'Lentes'
+
+                } else if (['3', 'tres', 'monturas'].includes(body)) {
+                    responseText = '🕶️ ¡Tenemos monturas increíbles! Puedes ver nuestro catálogo en línea aquí: [Link al Catálogo].\n\n¿Buscas algún estilo en particular?\n\n_Escribe "9" para hablar con un asesor._'
+                    shouldUpdateLead = true
+                    newStatus = 'interesado'
+                    tagToAdd = 'Monturas'
+
+                } else if (['4', 'cuatro', 'promociones'].includes(body)) {
+                    responseText = '🔥 *Promo del Mes*: 2x1 en monturas seleccionadas y 20% off en lentes BlueProtect. ¡Aprovecha antes de que se agoten!\n\n_Escribe "9" para más detalles con un asesor._'
+                    shouldUpdateLead = true
+                    newStatus = 'interesado'
+                    tagToAdd = 'Promociones'
+
+                } else if (greetings.some(k => body.includes(k)) || existingLead.status === 'nuevo') {
+                    // Welcome Menu only on Greeting OR New Lead (first msg)
+                    // If it's an existing lead saying something random like "gracias", stay silent.
+                    responseText = `Hola 👋 gracias por escribir a *Óptica Lyon Visión*.\n\n¿En qué podemos ayudarte hoy?\n\n1️⃣ Examen visual\n2️⃣ Lentes formulados\n3️⃣ Monturas\n4️⃣ Promociones\n9️⃣ Hablar con Asesor\n\n_Responde con el número de tu interés._`
+                }
+
+                // Execute Response ONLY if we matched a rule
+                if (responseText && messageType === 'text') {
+                    await sendWhatsApp(responseText)
+
+                    if (shouldUpdateLead) {
+                        const updates: any = { status: newStatus }
+                        if (tagToAdd && !currentTags.includes(tagToAdd)) {
+                            updates.tags = [...currentTags, tagToAdd]
+                        }
+
+                        await supabase
+                            .from('leads')
+                            .update(updates)
+                            .eq('id', leadId)
+                    }
+                } else {
+                    console.log('Bot ignored message (no rule matched or silent mode)')
+                }
             }
 
             return new Response(
