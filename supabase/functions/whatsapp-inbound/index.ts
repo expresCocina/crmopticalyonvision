@@ -284,7 +284,7 @@ serve(async (req) => {
                                     .from('appointments')
                                     .insert({
                                         lead_id: leadId,
-                                        appointment_date: appointmentDateTime.toISOString(),
+                                        scheduled_at: appointmentDateTime.toISOString(),
                                         appointment_type: appointmentIntent.appointmentType || 'examen_visual',
                                         status: 'confirmada',
                                         notes: `Agendada automáticamente vía WhatsApp: ${messageContent}`

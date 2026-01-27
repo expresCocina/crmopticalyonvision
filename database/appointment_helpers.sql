@@ -17,8 +17,8 @@ BEGIN
         COUNT(*)::int as conflicting_appointments_count
     FROM appointments
     WHERE status IN ('pendiente', 'confirmada')
-    AND appointment_date >= requested_date - (duration_minutes || ' minutes')::interval
-    AND appointment_date <= requested_date + (duration_minutes || ' minutes')::interval;
+    AND scheduled_at >= requested_date - (duration_minutes || ' minutes')::interval
+    AND scheduled_at <= requested_date + (duration_minutes || ' minutes')::interval;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -50,8 +50,8 @@ BEGIN
                 NOT EXISTS (
                     SELECT 1 FROM appointments
                     WHERE status IN ('pendiente', 'confirmada')
-                    AND appointment_date >= current_slot - (slot_duration_minutes || ' minutes')::interval
-                    AND appointment_date <= slot_end
+                    AND scheduled_at >= current_slot - (slot_duration_minutes || ' minutes')::interval
+                    AND scheduled_at <= slot_end
                 ) as is_available;
         END LOOP;
     END LOOP;
