@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useChat } from '@/hooks/useChat'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Loader2, Send, Search, Phone, MoreVertical, User, MessageSquare, ArrowLeft } from 'lucide-react'
+import { Loader2, Send, Search, Phone, MoreVertical, MessageSquare, ArrowLeft } from 'lucide-react'
+import { LeadAvatar } from '@/components/chat/LeadAvatar'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -88,9 +89,12 @@ export default function ChatPage() {
                                         <span className="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-green-500" />
                                     )}
 
-                                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                                        <User className="h-5 w-5 text-primary" />
-                                    </div>
+                                    <LeadAvatar
+                                        fullName={lead.full_name || undefined}
+                                        waId={lead.wa_id}
+                                        active={activeLeadId === lead.id}
+                                        size="md"
+                                    />
                                     <div className="flex-1 min-w-0">
                                         <div className="flex justify-between items-baseline mb-1">
                                             <span className={cn(
@@ -142,9 +146,12 @@ export default function ChatPage() {
                                     <ArrowLeft className="h-5 w-5" />
                                 </Button>
 
-                                <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                                    <User className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-                                </div>
+                                <LeadAvatar
+                                    fullName={activeLead.full_name || undefined}
+                                    waId={activeLead.wa_id}
+                                    active={true}
+                                    size="md"
+                                />
                                 <div className="flex-1 min-w-0">
                                     <h3 className="font-bold text-sm md:text-base truncate">{activeLead.full_name || 'Usuario WhatsApp'}</h3>
                                     <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
