@@ -11,6 +11,7 @@ create type msg_direction as enum ('inbound', 'outbound');
 create type appointment_status as enum ('pendiente', 'confirmada', 'cancelada', 'completada', 'no_asistio');
 create type currency_code as enum ('COP', 'USD', 'MXN');
 create type message_status as enum ('sent', 'delivered', 'read', 'failed');
+create type order_status as enum ('pendiente', 'en_estudio', 'en_entrega', 'entregada');
 
 -- 2. TABLES
 
@@ -85,6 +86,9 @@ create table purchases (
   amount numeric not null,
   currency currency_code default 'COP', -- ENUM
   status text default 'paid', -- paid, pending, refunded
+  order_status order_status default 'pendiente', -- Order workflow status
+  delivery_notes text, -- Notes about delivery
+  delivered_at timestamptz, -- Timestamp when marked as delivered
   delivery_date date,
   is_delivered boolean default false,
   created_at timestamptz default now()

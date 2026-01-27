@@ -12,7 +12,8 @@ import {
     ShoppingBag,
     BarChart3,
     Settings,
-    Glasses
+    Glasses,
+    Package
 } from 'lucide-react'
 
 export const navItems = [
@@ -22,6 +23,7 @@ export const navItems = [
     { label: 'Agenda', href: '/appointments', icon: Calendar },
     { label: 'Clínica', href: '/clinical', icon: ClipboardList },
     { label: 'Ventas', href: '/purchases', icon: ShoppingBag },
+    { label: 'Órdenes', href: '/orders', icon: Package },
     { label: 'Marketing', href: '/marketing', icon: BarChart3 },
 ]
 
