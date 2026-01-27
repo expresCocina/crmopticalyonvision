@@ -24,6 +24,7 @@ export const navItems = [
     { label: 'Clínica', href: '/clinical', icon: ClipboardList },
     { label: 'Ventas', href: '/purchases', icon: ShoppingBag },
     { label: 'Órdenes', href: '/orders', icon: Package },
+    { label: 'Clientes', href: '/customers', icon: Users },
     { label: 'Marketing', href: '/marketing', icon: BarChart3 },
 ]
 

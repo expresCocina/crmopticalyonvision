@@ -37,6 +37,7 @@ create table leads (
   tags text[], -- Array de etiquetas (e.g. ['examen', 'lentes', 'promo'])
   notes text,
   last_interaction timestamptz default now(),
+  last_reminder_sent timestamptz, -- Last automated reminder sent
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -114,6 +115,30 @@ create table automation_logs (
   status text, -- 'success', 'failed'
   error_message text,
   executed_at timestamptz default now()
+);
+
+-- MARKETING CAMPAIGNS: Campañas de marketing masivo
+create table marketing_campaigns (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  message_template text not null,
+  target_segment text, -- 'frios', 'proceso', 'activos', 'custom'
+  target_status lead_status[],
+  scheduled_at timestamptz,
+  sent_count int default 0,
+  is_active boolean default true,
+  created_by uuid references profiles(id),
+  created_at timestamptz default now()
+);
+
+-- CAMPAIGN SENDS: Registro de envíos de campañas
+create table campaign_sends (
+  id uuid default gen_random_uuid() primary key,
+  campaign_id uuid references marketing_campaigns(id) on delete cascade,
+  lead_id uuid references leads(id) on delete cascade,
+  message_id uuid references messages(id),
+  sent_at timestamptz default now(),
+  status text default 'sent' -- sent, delivered, read, failed
 );
 
 -- 3. INDEXES (Performance)
