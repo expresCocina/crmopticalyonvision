@@ -38,6 +38,7 @@ create table leads (
   notes text,
   last_interaction timestamptz default now(),
   last_reminder_sent timestamptz, -- Last automated reminder sent
+  last_agent_interaction timestamptz, -- Para auto-reactivación del bot
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

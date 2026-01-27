@@ -74,7 +74,7 @@ serve(async (req) => {
             // 1. Upsert Lead
             const { data: existingLead } = await supabase
                 .from('leads')
-                .select('id, full_name, tags')
+                .select('id, full_name, tags, bot_active, last_agent_interaction')
                 .eq('wa_id', wa_id)
                 .single()
 
@@ -92,6 +92,34 @@ serve(async (req) => {
                     .eq('id', leadId)
 
                 console.log(`Updated existing lead: ${leadId}`)
+
+                // AUTO-REACTIVATION LOGIC: Check if bot should be reactivated
+                if (existingLead.bot_active === false && existingLead.last_agent_interaction) {
+                    const REACTIVATION_HOURS = 2
+                    const twoHoursAgo = new Date(Date.now() - REACTIVATION_HOURS * 60 * 60 * 1000)
+                    const lastAgentTime = new Date(existingLead.last_agent_interaction)
+
+                    if (lastAgentTime < twoHoursAgo) {
+                        console.log(`🔄 Auto-reactivating bot for lead ${leadId} (inactive for ${REACTIVATION_HOURS}+ hours)`)
+
+                        await supabase
+                            .from('leads')
+                            .update({ bot_active: true })
+                            .eq('id', leadId)
+
+                        // Update local variable so bot logic runs below
+                        existingLead.bot_active = true
+
+                        // Optional: Log reactivation message
+                        await supabase.from('messages').insert({
+                            lead_id: leadId,
+                            content: '🤖 Bot reactivado automáticamente por inactividad',
+                            direction: 'system',
+                            type: 'text',
+                            status: 'delivered'
+                        })
+                    }
+                }
             } else {
                 // Create new lead
                 const { data: newLead, error: leadError } = await supabase
@@ -149,7 +177,16 @@ serve(async (req) => {
                 const body = messageContent.trim().toLowerCase()
                 const currentTags = existingLead?.tags || []
 
-                // STOP CONDITION: If already handed off to human, ignore bot logic
+                // STOP CONDITION 1: If bot_active is false (agent took over), ignore bot logic
+                if (existingLead?.bot_active === false) {
+                    console.log('Bot skipped: bot_active is false (agent handling)')
+                    return new Response(JSON.stringify({ status: 'ok', note: 'bot_disabled' }), {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                        status: 200,
+                    })
+                }
+
+                // STOP CONDITION 2: If already handed off to human via tag, ignore bot logic
                 if (currentTags.includes('bot_stop')) {
                     console.log('Bot skipped: Lead has bot_stop tag')
                     return new Response(JSON.stringify({ status: 'ok', note: 'bot_stopped' }), {
