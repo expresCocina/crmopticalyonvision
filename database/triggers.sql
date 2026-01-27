@@ -34,7 +34,7 @@ begin
              when status = 'cliente' then 'recurrente'
              else 'cliente'
           end
-       ),
+       )::lead_status,
        last_interaction = now(),
        updated_at = now()
      where id = new.lead_id;
