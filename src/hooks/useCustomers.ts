@@ -130,6 +130,7 @@ export function useCustomers(segment: CustomerSegment = 'all') {
         return () => {
             supabase.removeChannel(channel)
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [segment])
 
     return {
