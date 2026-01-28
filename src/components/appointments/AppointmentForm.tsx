@@ -46,6 +46,22 @@ export function AppointmentForm({ onSuccess }: { onSuccess: () => void }) {
             toast.success("Cita agendada correctamente", {
                 description: "El estado del lead será actualizado automáticamente."
             })
+
+            // NOTIFICAR AL CLIENTE
+            try {
+                const dateObj = new Date(formData.scheduled_at)
+                const formattedDate = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+                const formattedTime = dateObj.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
+
+                const message = `✅ *Cita Agendada Manualmente*\n\nHola, te confirmamos que hemos agendado tu cita para:\n📅 ${formattedDate}\n🕐 ${formattedTime}\n\n📍 Óptica Lyon Visión\n\n¡Te esperamos!`
+
+                await supabase.functions.invoke('whatsapp-outbound', {
+                    body: { lead_id: formData.lead_id, message }
+                })
+            } catch (err) {
+                console.error("Error enviando notificación WhatsApp:", err)
+            }
+
             onSuccess()
         }
         setSaving(false)

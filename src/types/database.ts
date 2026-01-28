@@ -28,6 +28,7 @@ export interface Lead {
     last_interaction: string;
     created_at: string;
     updated_at: string;
+    unread_count: number;
 }
 
 export interface Message {

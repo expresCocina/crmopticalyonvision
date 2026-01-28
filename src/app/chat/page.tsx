@@ -85,8 +85,8 @@ export default function ChatPage() {
                                     )}
                                 >
                                     {/* Unread/New Indicator */}
-                                    {lead.status === 'nuevo' && (
-                                        <span className="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-green-500" />
+                                    {lead.unread_count > 0 && (
+                                        <span className="absolute left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-green-500 shadow-sm animate-pulse" />
                                     )}
 
                                     <LeadAvatar
@@ -99,25 +99,32 @@ export default function ChatPage() {
                                         <div className="flex justify-between items-baseline mb-1">
                                             <span className={cn(
                                                 "truncate text-sm",
-                                                lead.status === 'nuevo' ? "font-bold text-foreground" : "font-medium"
+                                                lead.unread_count > 0 ? "font-bold text-foreground" : "font-medium"
                                             )}>
                                                 {lead.full_name || lead.wa_id}
                                             </span>
                                             <span className={cn(
                                                 "text-[10px] flex-shrink-0 ml-2",
-                                                lead.status === 'nuevo' ? "text-green-600 font-bold" : "text-muted-foreground"
+                                                lead.unread_count > 0 ? "text-green-600 font-bold" : "text-muted-foreground"
                                             )}>
                                                 {lead.last_interaction && format(parseISO(lead.last_interaction), 'HH:mm')}
                                             </span>
                                         </div>
-                                        <p className={cn(
-                                            "text-xs truncate",
-                                            lead.status === 'nuevo' ? "text-foreground font-medium" : "text-muted-foreground"
-                                        )}>
-                                            {lead.status === 'nuevo' ? '✨ Nuevo Mensaje' :
-                                                lead.status === 'agendado' ? '📅 Agendado' :
-                                                    lead.wa_id}
-                                        </p>
+                                        <div className="flex justify-between items-center">
+                                            <p className={cn(
+                                                "text-xs truncate flex-1",
+                                                lead.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                                            )}>
+                                                {lead.unread_count > 0 ? `✨ ${lead.unread_count} mensaje${lead.unread_count > 1 ? 's' : ''} nuevo${lead.unread_count > 1 ? 's' : ''}` :
+                                                    lead.status === 'agendado' ? '📅 Cita Agendada' :
+                                                        lead.wa_id}
+                                            </p>
+                                            {lead.unread_count > 0 && (
+                                                <span className="ml-2 bg-green-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold min-w-[18px] text-center">
+                                                    {lead.unread_count}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </button>
                             ))}

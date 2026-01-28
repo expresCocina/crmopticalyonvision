@@ -125,16 +125,17 @@ export function useChat() {
         if (!id) return
 
         const lead = leads.find(l => l.id === id)
-        if (lead && lead.status === 'nuevo') {
-            // Move from 'nuevo' to 'interesado' (or 'contactado' if we had it) to clear the notification
-            // 'interesado' implies we are looking at it.
+        if (lead) {
+            // Reset unread count to 0
             const { error } = await supabase
                 .from('leads')
-                .update({ status: 'interesado' })
+                .update({ unread_count: 0 })
                 .eq('id', id)
 
-            if (error) console.error('Error updating lead status:', error)
-            // No need for manual state update as Realtime subscription will handle it
+            if (error) console.error('Error updating lead unread count:', error)
+
+            // Optimistic update for UI responsiveness
+            setLeads(prev => prev.map(l => l.id === id ? { ...l, unread_count: 0 } : l))
         }
     }
 

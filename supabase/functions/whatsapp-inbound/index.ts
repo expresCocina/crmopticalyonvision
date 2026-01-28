@@ -151,6 +151,9 @@ serve(async (req) => {
             lead_id: leadId, wa_message_id: message.id, content: messageContent, type: message.type, direction: 'inbound', status: 'delivered'
         })
 
+        // INCREMENTAR CONTADOR DE NO LEÍDOS
+        await supabase.rpc('increment_unread_count', { row_id: leadId })
+
         // 2. Función envío WhatsApp + REGISTRO EN CRM
         const sendWhatsApp = async (text: string) => {
             const response = await fetch(`https://graph.facebook.com/v24.0/${Deno.env.get('WHATSAPP_PHONE_ID')}/messages`, {
