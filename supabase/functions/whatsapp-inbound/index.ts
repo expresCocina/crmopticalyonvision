@@ -1,6 +1,209 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { detectAppointmentIntent, formatDateForUser, formatTimeForUser } from './appointment-parser.ts'
+
+// ========== APPOINTMENT PARSER (INLINE) ==========
+
+interface AppointmentIntent {
+    hasIntent: boolean
+    date?: Date
+    time?: string
+    rawDate?: string
+    rawTime?: string
+    appointmentType?: string
+}
+
+function detectAppointmentIntent(message: string): AppointmentIntent {
+    const lowerMessage = message.toLowerCase().trim()
+
+    const appointmentKeywords = [
+        'agendar', 'agenda', 'cita', 'reservar', 'reserva',
+        'examen', 'consulta', 'revisión', 'revision',
+        'quiero una cita', 'necesito una cita',
+        'cuando puedo ir', 'horario disponible'
+    ]
+
+    const hasIntent = appointmentKeywords.some(keyword => lowerMessage.includes(keyword))
+
+    if (!hasIntent) {
+        return { hasIntent: false }
+    }
+
+    const dateInfo = extractDate(lowerMessage)
+    const timeInfo = extractTime(lowerMessage)
+    const appointmentType = extractAppointmentType(lowerMessage)
+
+    return {
+        hasIntent: true,
+        date: dateInfo.date,
+        rawDate: dateInfo.raw,
+        time: timeInfo.time,
+        rawTime: timeInfo.raw,
+        appointmentType
+    }
+}
+
+function extractDate(message: string): { date?: Date; raw?: string } {
+    // Fix: Usar componentes de fecha para evitar UTC shifts y asegurar año correcto
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+    if (message.includes('hoy')) {
+        return { date: new Date(today), raw: 'hoy' }
+    }
+
+    if (message.includes('mañana') || message.includes('manana')) {
+        const tomorrow = new Date(today)
+        tomorrow.setDate(today.getDate() + 1)
+        return { date: tomorrow, raw: 'mañana' }
+    }
+
+    if (message.includes('pasado mañana') || message.includes('pasado manana')) {
+        const dayAfterTomorrow = new Date(today)
+        dayAfterTomorrow.setDate(today.getDate() + 2)
+        return { date: dayAfterTomorrow, raw: 'pasado mañana' }
+    }
+
+    const daysOfWeek = ['domingo', 'lunes', 'martes', 'miércoles', 'miercoles', 'jueves', 'viernes', 'sábado', 'sabado']
+    for (let i = 0; i < daysOfWeek.length; i++) {
+        const day = daysOfWeek[i]
+        if (message.includes(day)) {
+            const targetDay = i
+            const currentDay = today.getDay()
+            let daysToAdd = targetDay - currentDay
+
+            if (daysToAdd <= 0) {
+                daysToAdd += 7
+            }
+
+            const targetDate = new Date(today)
+            targetDate.setDate(today.getDate() + daysToAdd)
+            return { date: targetDate, raw: day }
+        }
+    }
+
+    const datePattern = /(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/i
+    const dateMatch = message.match(datePattern)
+
+    if (dateMatch) {
+        const day = parseInt(dateMatch[1])
+        const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+        const month = monthNames.indexOf(dateMatch[2].toLowerCase())
+
+        // Si el mes ya pasó, asumir próximo año
+        let year = now.getFullYear()
+        if (month < now.getMonth() || (month === now.getMonth() && day < now.getDate())) {
+            year += 1
+        }
+
+        const targetDate = new Date(year, month, day)
+        return { date: targetDate, raw: dateMatch[0] }
+    }
+
+    const shortDatePattern = /(\d{1,2})\/(\d{1,2})/
+    const shortDateMatch = message.match(shortDatePattern)
+
+    if (shortDateMatch) {
+        const day = parseInt(shortDateMatch[1])
+        const month = parseInt(shortDateMatch[2]) - 1
+
+        // Si el mes ya pasó, asumir próximo año
+        let year = now.getFullYear()
+        if (month < now.getMonth() || (month === now.getMonth() && day < now.getDate())) {
+            year += 1
+        }
+
+        const targetDate = new Date(year, month, day)
+        return { date: targetDate, raw: shortDateMatch[0] }
+    }
+
+    return {}
+}
+
+function extractTime(message: string): { time?: string; raw?: string } {
+    // Pattern 1: HH:MM am/pm (ej. 10:30pm, 10:30 pm)
+    // Grupo 1: Hora, Grupo 2: Minutos, Grupo 3: am/pm
+    const pattern1 = /(\d{1,2}):(\d{2})\s*(am|pm)?/i
+    const match1 = message.match(pattern1)
+    if (match1) {
+        let hour = parseInt(match1[1])
+        const minute = parseInt(match1[2])
+        const meridiem = match1[3]?.toLowerCase()
+
+        if (meridiem === 'pm' && hour < 12) hour += 12
+        if (meridiem === 'am' && hour === 12) hour = 0
+
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+        return { time: timeString, raw: match1[0] }
+    }
+
+    // Pattern 2: HH am/pm (ej. 3pm, 3 pm, 10am) - SIN MINUTOS
+    // Grupo 1: Hora, Grupo 2: am/pm
+    const pattern2 = /(\d{1,2})\s*(am|pm)/i
+    const match2 = message.match(pattern2)
+    if (match2) {
+        let hour = parseInt(match2[1])
+        const minute = 0 // Minutos son 00
+        const meridiem = match2[2]?.toLowerCase()
+
+        if (meridiem === 'pm' && hour < 12) hour += 12
+        if (meridiem === 'am' && hour === 12) hour = 0
+
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+        return { time: timeString, raw: match2[0] }
+    }
+
+    // Pattern 3: "a las" HH:MM o HH (ej. a las 3, a las 3:30)
+    // Grupo 1: Hora, Grupo 2: Minutos (opcional)
+    const pattern3 = /a\s+las\s+(\d{1,2})(?::(\d{2}))?/i
+    const match3 = message.match(pattern3)
+    if (match3) {
+        let hour = parseInt(match3[1])
+        const minute = match3[2] ? parseInt(match3[2]) : 0
+
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+        return { time: timeString, raw: match3[0] }
+    }
+
+    return {}
+}
+
+function extractAppointmentType(message: string): string {
+    if (message.includes('examen') || message.includes('revision') || message.includes('revisión')) {
+        return 'examen_visual'
+    }
+    if (message.includes('entrega') || message.includes('recoger')) {
+        return 'entrega_lentes'
+    }
+    if (message.includes('seguimiento') || message.includes('control')) {
+        return 'seguimiento'
+    }
+    return 'examen_visual'
+}
+
+function formatDateForUser(date: Date): string {
+    const days = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+    const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+
+    const dayName = days[date.getDay()]
+    const day = date.getDate()
+    const month = months[date.getMonth()]
+
+    return `${dayName} ${day} de ${month}`
+}
+
+function formatTimeForUser(time: string): string {
+    const [hour, minute] = time.split(':').map(Number)
+
+    if (hour < 12) {
+        return `${hour}:${minute.toString().padStart(2, '0')} AM`
+    } else if (hour === 12) {
+        return `12:${minute.toString().padStart(2, '0')} PM`
+    } else {
+        return `${hour - 12}:${minute.toString().padStart(2, '0')} PM`
+    }
+}
+
+// ========== END APPOINTMENT PARSER ==========
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -8,7 +211,6 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-    // Handle CORS preflight
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }
@@ -16,7 +218,6 @@ serve(async (req) => {
     try {
         const url = new URL(req.url)
 
-        // GET: Webhook Verification (Meta)
         if (req.method === 'GET') {
             const mode = url.searchParams.get('hub.mode')
             const token = url.searchParams.get('hub.verify_token')
@@ -36,7 +237,6 @@ serve(async (req) => {
             }
         }
 
-        // POST: Incoming Messages
         if (req.method === 'POST') {
             const supabase = createClient(
                 Deno.env.get('SUPABASE_URL') ?? '',
@@ -46,13 +246,12 @@ serve(async (req) => {
             const payload = await req.json()
             console.log('Received webhook payload:', JSON.stringify(payload, null, 2))
 
-            // Parse WhatsApp Cloud API payload
             const entry = payload.entry?.[0]
             const changes = entry?.changes?.[0]
             const value = changes?.value
 
-            if (!value?.messages || value.messages.length === 0) {
-                console.log('No messages in payload, returning 200')
+            if (!value?.messages) {
+                console.log('No messages in payload, skipping')
                 return new Response(JSON.stringify({ status: 'ok' }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                     status: 200,
@@ -64,54 +263,67 @@ serve(async (req) => {
             const wa_message_id = message.id
             const timestamp = message.timestamp
             const messageType = message.type
-            const messageContent = message.text?.body || message.image?.caption || ''
 
-            // Extract contact name if available
-            const contact = value.contacts?.[0]
-            const contactName = contact?.profile?.name || null
+            let messageContent = ''
+            if (messageType === 'text') {
+                messageContent = message.text?.body || ''
+            } else if (messageType === 'image') {
+                messageContent = '[Imagen recibida]'
+            } else {
+                messageContent = `[${messageType}]`
+            }
 
             console.log(`Processing message from ${wa_id}: ${messageContent}`)
 
-            // 1. Upsert Lead
-            const { data: existingLead } = await supabase
+            const { data: existingLead, error: leadError } = await supabase
                 .from('leads')
-                .select('id, full_name, tags, bot_active, last_agent_interaction')
+                .select('id, bot_active, last_agent_interaction')
                 .eq('wa_id', wa_id)
-                .single()
+                .maybeSingle()
 
-            let leadId: string
+            let leadId = existingLead?.id
 
-            if (existingLead) {
-                // Update existing lead
-                leadId = existingLead.id
+            if (!existingLead) {
+                const { data: newLead, error: insertError } = await supabase
+                    .from('leads')
+                    .insert({
+                        wa_id,
+                        full_name: value.contacts?.[0]?.profile?.name || `Cliente ${wa_id}`,
+                        status: 'nuevo',
+                        source: 'whatsapp',
+                        last_interaction: new Date(parseInt(timestamp) * 1000).toISOString()
+                    })
+                    .select()
+                    .single()
+
+                if (insertError) {
+                    console.error('Error creating lead:', insertError)
+                    throw insertError
+                }
+
+                leadId = newLead.id
+                console.log('New lead created:', leadId)
+            } else {
                 await supabase
                     .from('leads')
-                    .update({
-                        last_interaction: new Date().toISOString(),
-                        full_name: existingLead.full_name || contactName // Keep existing name if set
-                    })
+                    .update({ last_interaction: new Date(parseInt(timestamp) * 1000).toISOString() })
                     .eq('id', leadId)
 
-                console.log(`Updated existing lead: ${leadId}`)
-
-                // AUTO-REACTIVATION LOGIC: Check if bot should be reactivated
                 if (existingLead.bot_active === false && existingLead.last_agent_interaction) {
                     const REACTIVATION_HOURS = 2
                     const twoHoursAgo = new Date(Date.now() - REACTIVATION_HOURS * 60 * 60 * 1000)
                     const lastAgentTime = new Date(existingLead.last_agent_interaction)
 
                     if (lastAgentTime < twoHoursAgo) {
-                        console.log(`🔄 Auto-reactivating bot for lead ${leadId} (inactive for ${REACTIVATION_HOURS}+ hours)`)
+                        console.log(`🔄 Auto-reactivating bot for lead ${leadId}`)
 
                         await supabase
                             .from('leads')
                             .update({ bot_active: true })
                             .eq('id', leadId)
 
-                        // Update local variable so bot logic runs below
                         existingLead.bot_active = true
 
-                        // Optional: Log reactivation message
                         await supabase.from('messages').insert({
                             lead_id: leadId,
                             content: '🤖 Bot reactivado automáticamente por inactividad',
@@ -121,30 +333,8 @@ serve(async (req) => {
                         })
                     }
                 }
-            } else {
-                // Create new lead
-                const { data: newLead, error: leadError } = await supabase
-                    .from('leads')
-                    .insert({
-                        wa_id,
-                        full_name: contactName,
-                        status: 'nuevo',
-                        source: 'whatsapp',
-                        last_interaction: new Date().toISOString()
-                    })
-                    .select()
-                    .single()
-
-                if (leadError) {
-                    console.error('Error creating lead:', leadError)
-                    throw leadError
-                }
-
-                leadId = newLead.id
-                console.log(`Created new lead: ${leadId}`)
             }
 
-            // 2. Insert Message (using upsert to handle Meta's duplicate webhook retries)
             const { error: messageError } = await supabase
                 .from('messages')
                 .upsert({
@@ -165,29 +355,24 @@ serve(async (req) => {
                 throw messageError
             }
 
-            console.log('Message saved successfully (or already existed)')
+            console.log('Message saved successfully')
 
-            // 3. Check if auto-response is enabled
             const { data: settings } = await supabase
                 .from('system_settings')
                 .select('whatsapp_enabled')
                 .single()
 
             if (settings?.whatsapp_enabled) {
-                // 4. Smart Bot Logic
-                const body = messageContent.trim().toLowerCase()
                 const currentTags = existingLead?.tags || []
 
-                // STOP CONDITION 1: If bot_active is false (agent took over), ignore bot logic
                 if (existingLead?.bot_active === false) {
-                    console.log('Bot skipped: bot_active is false (agent handling)')
+                    console.log('Bot skipped: bot_active is false')
                     return new Response(JSON.stringify({ status: 'ok', note: 'bot_disabled' }), {
                         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                         status: 200,
                     })
                 }
 
-                // STOP CONDITION 2: If already handed off to human via tag, ignore bot logic
                 if (currentTags.includes('bot_stop')) {
                     console.log('Bot skipped: Lead has bot_stop tag')
                     return new Response(JSON.stringify({ status: 'ok', note: 'bot_stopped' }), {
@@ -196,13 +381,11 @@ serve(async (req) => {
                     })
                 }
 
-                // Helper to send message with error handling (DECLARED FIRST)
                 const sendWhatsApp = async (text: string) => {
                     const phoneNumberId = Deno.env.get('WHATSAPP_PHONE_ID')
                     const accessToken = Deno.env.get('WHATSAPP_API_TOKEN')
 
-                    // Debug log
-                    console.log(`Attempting to send message to ${wa_id} using Phone ID: ${phoneNumberId}`)
+                    console.log(`Attempting to send message to ${wa_id}`)
 
                     try {
                         const response = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
@@ -224,7 +407,6 @@ serve(async (req) => {
 
                         if (!response.ok) {
                             console.error('Failed to send WhatsApp message:', data)
-                            // Log failure to DB so user sees it
                             await supabase.from('messages').insert({
                                 lead_id: leadId,
                                 content: text,
@@ -236,7 +418,6 @@ serve(async (req) => {
                             return
                         }
 
-                        // Log success to DB
                         await supabase.from('messages').insert({
                             lead_id: leadId,
                             content: text,
@@ -251,40 +432,39 @@ serve(async (req) => {
                     }
                 }
 
-
-                // ========== APPOINTMENT BOOKING LOGIC ==========
+                // ========== APPOINTMENT BOOKING LOGIC (PRIORITY) ==========
                 const appointmentIntent = detectAppointmentIntent(messageContent)
                 console.log('Appointment intent detected:', appointmentIntent)
 
-                if (appointmentIntent.hasIntent) {
-                    // Check if we have both date and time
+                if (appointmentIntent.hasIntent || appointmentIntent.date || appointmentIntent.time) {
                     if (appointmentIntent.date && appointmentIntent.time) {
-                        // Combine date and time
                         const [hours, minutes] = appointmentIntent.time.split(':').map(Number)
                         const appointmentDateTime = new Date(appointmentIntent.date)
                         appointmentDateTime.setHours(hours, minutes, 0, 0)
 
-                        console.log('Checking availability for:', appointmentDateTime.toISOString())
+                        // Fix 2: Asegurar que la fecha sea ISO
+                        const isoDate = appointmentDateTime.toISOString()
 
-                        // Check availability using SQL function
+                        console.log('Checking availability for:', isoDate)
+
                         const { data: availabilityCheck, error: availError } = await supabase
                             .rpc('check_appointment_availability', {
-                                requested_date: appointmentDateTime.toISOString(),
+                                requested_date: isoDate,
                                 duration_minutes: 30
                             })
 
                         if (availError) {
                             console.error('Error checking availability:', availError)
+                            await sendWhatsApp('Hubo un error al verificar disponibilidad. Por favor intenta de nuevo.')
                         } else if (availabilityCheck && availabilityCheck.length > 0) {
                             const isAvailable = availabilityCheck[0].available
 
                             if (isAvailable) {
-                                // CREATE APPOINTMENT
                                 const { data: newAppointment, error: aptError } = await supabase
                                     .from('appointments')
                                     .insert({
                                         lead_id: leadId,
-                                        scheduled_at: appointmentDateTime.toISOString(),
+                                        scheduled_at: isoDate,
                                         appointment_type: appointmentIntent.appointmentType || 'examen_visual',
                                         status: 'confirmada',
                                         notes: `Agendada automáticamente vía WhatsApp: ${messageContent}`
@@ -294,16 +474,15 @@ serve(async (req) => {
 
                                 if (aptError) {
                                     console.error('Error creating appointment:', aptError)
+                                    await sendWhatsApp('Hubo un error al crear la cita. Por favor contacta con nosotros.')
                                 } else {
                                     console.log('Appointment created successfully:', newAppointment)
 
-                                    // UPDATE LEAD STATUS TO 'agendado'
                                     await supabase
                                         .from('leads')
                                         .update({ status: 'agendado' })
                                         .eq('id', leadId)
 
-                                    // SEND CONFIRMATION MESSAGE
                                     const confirmationMessage = `✅ ¡Cita confirmada!
 
 📅 Fecha: ${formatDateForUser(appointmentIntent.date)}
@@ -314,7 +493,6 @@ Te esperamos! Si necesitas cambiar tu cita, avísanos.`
 
                                     await sendWhatsApp(confirmationMessage)
 
-                                    // Log appointment creation
                                     await supabase.from('messages').insert({
                                         lead_id: leadId,
                                         content: '🤖 Sistema: Cita agendada automáticamente',
@@ -329,9 +507,8 @@ Te esperamos! Si necesitas cambiar tu cita, avísanos.`
                                     })
                                 }
                             } else {
-                                // NO AVAILABILITY - Suggest alternative times
-                                const targetDate = appointmentIntent.date
-                                targetDate.setHours(0, 0, 0, 0)
+                                // Fix 3: Usar objeto Date limpio para slots
+                                const targetDate = new Date(appointmentIntent.date)
 
                                 const { data: availableSlots, error: slotsError } = await supabase
                                     .rpc('get_available_slots', {
@@ -371,22 +548,22 @@ Responde con el horario que prefieras.`
                                 })
                             }
                         }
-                    } else if (appointmentIntent.date && !appointmentIntent.time) {
-                        // Has date but no time - ask for time
+                    }
+                    else if (appointmentIntent.date && !appointmentIntent.time) {
                         await sendWhatsApp(`Perfecto! ¿A qué hora te gustaría agendar para el ${formatDateForUser(appointmentIntent.date)}?\n\nEjemplo: "3pm" o "15:00"`)
                         return new Response(JSON.stringify({ status: 'ok', awaiting_time: true }), {
                             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                             status: 200,
                         })
-                    } else if (!appointmentIntent.date && appointmentIntent.time) {
-                        // Has time but no date - ask for date
+                    }
+                    else if (!appointmentIntent.date && appointmentIntent.time) {
                         await sendWhatsApp(`Entendido, a las ${formatTimeForUser(appointmentIntent.time)}. ¿Qué día te gustaría agendar?\n\nEjemplo: "mañana", "lunes", "30 de enero"`)
                         return new Response(JSON.stringify({ status: 'ok', awaiting_date: true }), {
                             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                             status: 200,
                         })
-                    } else {
-                        // Has intent but no date or time - ask for both
+                    }
+                    else if (appointmentIntent.hasIntent) {
                         await sendWhatsApp('¡Perfecto! ¿Qué día y hora te gustaría agendar?\n\nEjemplo: "mañana a las 3pm" o "lunes 29 a las 10am"')
                         return new Response(JSON.stringify({ status: 'ok', awaiting_datetime: true }), {
                             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -394,96 +571,41 @@ Responde con el horario que prefieras.`
                         })
                     }
                 }
-                // ========== END APPOINTMENT BOOKING LOGIC ==========
+                // ========== END APPOINTMENT LOGIC ==========
 
-                // Logic Flow
+                const body = messageContent.trim().toLowerCase()
                 let responseText = ''
-                let shouldUpdateLead = false
-                let newStatus = ''
-                let tagToAdd = ''
 
-                // Greetings Keywords
-                const greetings = ['hola', 'buenos dias', 'buenas tardes', 'buenas noches', 'hi', 'start', 'inicio', 'menu']
-
-                // Handover Keywords
-                const humanKeywords = ['humano', 'asesor', 'persona', 'ayuda', 'hablar con alguien']
-
-                if (humanKeywords.some(k => body.includes(k)) || body === '9') {
-                    // HANDOVER CASE
-                    responseText = '👤 Te estoy contactando con un asesor humano. En breve te responderemos.'
-                    shouldUpdateLead = true
-                    newStatus = 'interesado'
-                    tagToAdd = 'bot_stop' // This stops the bot from replying further
-
-                } else if (['1', 'uno', 'examen'].includes(body)) {
-                    responseText = '👁️ ¡Excelente decisión! Para agendar tu *Examen Visual*:\n\n📅 Indícanos qué día y hora prefieres.\n📍 Estamos ubicados en [Tu Dirección].\n\n_Escribe "9" para hablar con un asesor si necesitas ayuda._'
-                    shouldUpdateLead = true
-                    newStatus = 'interesado'
-                    tagToAdd = 'Examen'
-
-                } else if (['2', 'dos', 'lentes'].includes(body)) {
-                    responseText = '👓 Entendido. Si tienes tu fórmula médica a la mano, puedes enviarnos una foto por aquí.\n\nSi no, escribe "1" para agendar examen.\n\n_Escribe "9" para hablar con un asesor._'
-                    shouldUpdateLead = true
-                    newStatus = 'interesado'
-                    tagToAdd = 'Lentes'
-
-                } else if (['3', 'tres', 'monturas'].includes(body)) {
-                    responseText = '🕶️ ¡Tenemos monturas increíbles! Puedes ver nuestro catálogo en línea aquí: [Link al Catálogo].\n\n¿Buscas algún estilo en particular?\n\n_Escribe "9" para hablar con un asesor._'
-                    shouldUpdateLead = true
-                    newStatus = 'interesado'
-                    tagToAdd = 'Monturas'
-
-                } else if (['4', 'cuatro', 'promociones'].includes(body)) {
-                    responseText = '🔥 *Promo del Mes*: 2x1 en monturas seleccionadas y 20% off en lentes BlueProtect. ¡Aprovecha antes de que se agoten!\n\n_Escribe "9" para más detalles con un asesor._'
-                    shouldUpdateLead = true
-                    newStatus = 'interesado'
-                    tagToAdd = 'Promociones'
-
-                } else if (greetings.some(k => body.includes(k)) || existingLead.status === 'nuevo') {
-                    // Welcome Menu only on Greeting OR New Lead (first msg)
-                    // If it's an existing lead saying something random like "gracias", stay silent.
-                    responseText = `Hola 👋 gracias por escribir a *Óptica Lyon Visión*.\n\n¿En qué podemos ayudarte hoy?\n\n1️⃣ Examen visual\n2️⃣ Lentes formulados\n3️⃣ Monturas\n4️⃣ Promociones\n9️⃣ Hablar con Asesor\n\n_Responde con el número de tu interés._`
+                if (body.includes('hola') || body.includes('buenos') || body.includes('buenas')) {
+                    responseText = '¡Hola! 👋 Bienvenido a Óptica Lyon Visión. ¿En qué puedo ayudarte hoy?'
+                } else if (body.includes('precio') || body.includes('costo') || body.includes('cuanto')) {
+                    responseText = 'Nuestros precios varían según el tipo de lentes y monturas. ¿Te gustaría agendar una cita para un examen visual? Es completamente gratis.'
+                } else if (body.includes('horario') || body.includes('abierto') || body.includes('atienden')) {
+                    responseText = 'Nuestro horario es de Lunes a Viernes de 9:00 AM a 6:00 PM, y Sábados de 9:00 AM a 2:00 PM.'
+                } else if (body.includes('ubicacion') || body.includes('direccion') || body.includes('donde')) {
+                    responseText = 'Estamos ubicados en [Tu dirección aquí]. ¿Te gustaría que te enviemos la ubicación exacta?'
+                } else {
+                    responseText = 'Gracias por tu mensaje. Un asesor te atenderá pronto. Si deseas agendar una cita, escribe "agendar cita".'
                 }
 
-                // Execute Response ONLY if we matched a rule
-                if (responseText && messageType === 'text') {
+                if (responseText) {
                     await sendWhatsApp(responseText)
-
-                    if (shouldUpdateLead) {
-                        const updates: any = { status: newStatus }
-                        if (tagToAdd && !currentTags.includes(tagToAdd)) {
-                            updates.tags = [...currentTags, tagToAdd]
-                        }
-
-                        await supabase
-                            .from('leads')
-                            .update(updates)
-                            .eq('id', leadId)
-                    }
-                } else {
-                    console.log('Bot ignored message (no rule matched or silent mode)')
                 }
             }
 
-            return new Response(
-                JSON.stringify({ status: 'success', lead_id: leadId }),
-                {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 200,
-                }
-            )
+            return new Response(JSON.stringify({ status: 'ok' }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 200,
+            })
         }
 
         return new Response('Method not allowed', { status: 405 })
 
     } catch (error) {
         console.error('Error processing webhook:', error)
-        return new Response(
-            JSON.stringify({ error: error.message }),
-            {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 500,
-            }
-        )
+        return new Response(JSON.stringify({ error: error.message }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500,
+        })
     }
 })
