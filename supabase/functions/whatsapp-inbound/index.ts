@@ -24,16 +24,14 @@ function detectAppointmentIntent(message: string): AppointmentIntent {
 
     const hasIntent = appointmentKeywords.some(keyword => lowerMessage.includes(keyword))
 
-    if (!hasIntent) {
-        return { hasIntent: false }
-    }
+    // FIX CRÍTICO (V3): No retornar early. Buscar fechas/horas siempre.
 
     const dateInfo = extractDate(lowerMessage)
     const timeInfo = extractTime(lowerMessage)
     const appointmentType = extractAppointmentType(lowerMessage)
 
     return {
-        hasIntent: true,
+        hasIntent: hasIntent,
         date: dateInfo.date,
         rawDate: dateInfo.raw,
         time: timeInfo.time,
@@ -43,15 +41,18 @@ function detectAppointmentIntent(message: string): AppointmentIntent {
 }
 
 function extractDate(message: string): { date?: Date; raw?: string } {
-    // Fix: Usar componentes de fecha para evitar UTC shifts y asegurar año correcto
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
-    if (message.includes('hoy')) {
+    // Palabras exactas para evitar falsos positivos
+    const words = message.split(/\s+/)
+
+    if (words.includes('hoy')) {
         return { date: new Date(today), raw: 'hoy' }
     }
 
     if (message.includes('mañana') || message.includes('manana')) {
+        // Verificar que no sea parte de otra palabra
         const tomorrow = new Date(today)
         tomorrow.setDate(today.getDate() + 1)
         return { date: tomorrow, raw: 'mañana' }
@@ -89,7 +90,6 @@ function extractDate(message: string): { date?: Date; raw?: string } {
         const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
         const month = monthNames.indexOf(dateMatch[2].toLowerCase())
 
-        // Si el mes ya pasó, asumir próximo año
         let year = now.getFullYear()
         if (month < now.getMonth() || (month === now.getMonth() && day < now.getDate())) {
             year += 1
@@ -106,7 +106,6 @@ function extractDate(message: string): { date?: Date; raw?: string } {
         const day = parseInt(shortDateMatch[1])
         const month = parseInt(shortDateMatch[2]) - 1
 
-        // Si el mes ya pasó, asumir próximo año
         let year = now.getFullYear()
         if (month < now.getMonth() || (month === now.getMonth() && day < now.getDate())) {
             year += 1
@@ -120,8 +119,7 @@ function extractDate(message: string): { date?: Date; raw?: string } {
 }
 
 function extractTime(message: string): { time?: string; raw?: string } {
-    // Pattern 1: HH:MM am/pm (ej. 10:30pm, 10:30 pm)
-    // Grupo 1: Hora, Grupo 2: Minutos, Grupo 3: am/pm
+    // Pattern 1: HH:MM am/pm
     const pattern1 = /(\d{1,2}):(\d{2})\s*(am|pm)?/i
     const match1 = message.match(pattern1)
     if (match1) {
@@ -136,13 +134,12 @@ function extractTime(message: string): { time?: string; raw?: string } {
         return { time: timeString, raw: match1[0] }
     }
 
-    // Pattern 2: HH am/pm (ej. 3pm, 3 pm, 10am) - SIN MINUTOS
-    // Grupo 1: Hora, Grupo 2: am/pm
+    // Pattern 2: HH am/pm (sin minutos)
     const pattern2 = /(\d{1,2})\s*(am|pm)/i
     const match2 = message.match(pattern2)
     if (match2) {
         let hour = parseInt(match2[1])
-        const minute = 0 // Minutos son 00
+        const minute = 0
         const meridiem = match2[2]?.toLowerCase()
 
         if (meridiem === 'pm' && hour < 12) hour += 12
@@ -152,8 +149,7 @@ function extractTime(message: string): { time?: string; raw?: string } {
         return { time: timeString, raw: match2[0] }
     }
 
-    // Pattern 3: "a las" HH:MM o HH (ej. a las 3, a las 3:30)
-    // Grupo 1: Hora, Grupo 2: Minutos (opcional)
+    // Pattern 3: "a las" HH:MM o HH
     const pattern3 = /a\s+las\s+(\d{1,2})(?::(\d{2}))?/i
     const match3 = message.match(pattern3)
     if (match3) {
@@ -436,16 +432,24 @@ serve(async (req) => {
                 const appointmentIntent = detectAppointmentIntent(messageContent)
                 console.log('Appointment intent detected:', appointmentIntent)
 
-                if (appointmentIntent.hasIntent || appointmentIntent.date || appointmentIntent.time) {
+                // Si detecta fecha y/u hora, O si tiene una intención explícita de cita que NO sea solo "1"
+                // (Para que "1" se maneje específicamente en el menú de abajo con nuestra respuesta personalizada)
+                const isExplicitMenuOption1 = messageContent.trim() === '1'
+
+                // Procesar si:
+                // 1. Hay fecha u hora (prioridad máxima, ej. "mañana a las 3")
+                // 2. O hay palabra clave "cita" Y NO es solo el número "1" (para usar el texto del menú si es "1")
+                // PERO: Si el usuario dice "1", queremos que le responda el mensaje especial, NO el genérico de "¿qué día?".
+                // Así que si es '1', lo dejamos pasar al bloque de abajo.
+
+                if ((appointmentIntent.date || appointmentIntent.time || (appointmentIntent.hasIntent && !isExplicitMenuOption1))) {
+
                     if (appointmentIntent.date && appointmentIntent.time) {
                         const [hours, minutes] = appointmentIntent.time.split(':').map(Number)
                         const appointmentDateTime = new Date(appointmentIntent.date)
                         appointmentDateTime.setHours(hours, minutes, 0, 0)
 
-                        // Fix 2: Asegurar que la fecha sea ISO
                         const isoDate = appointmentDateTime.toISOString()
-
-                        console.log('Checking availability for:', isoDate)
 
                         const { data: availabilityCheck, error: availError } = await supabase
                             .rpc('check_appointment_availability', {
@@ -456,6 +460,11 @@ serve(async (req) => {
                         if (availError) {
                             console.error('Error checking availability:', availError)
                             await sendWhatsApp('Hubo un error al verificar disponibilidad. Por favor intenta de nuevo.')
+                            // FIX V5: Agregar return para evitar doble respuesta
+                            return new Response(JSON.stringify({ status: 'error', error: availError }), {
+                                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                                status: 200,
+                            })
                         } else if (availabilityCheck && availabilityCheck.length > 0) {
                             const isAvailable = availabilityCheck[0].available
 
@@ -475,9 +484,12 @@ serve(async (req) => {
                                 if (aptError) {
                                     console.error('Error creating appointment:', aptError)
                                     await sendWhatsApp('Hubo un error al crear la cita. Por favor contacta con nosotros.')
+                                    // FIX V5: Agregar return para evitar doble respuesta
+                                    return new Response(JSON.stringify({ status: 'error', error: aptError }), {
+                                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                                        status: 200,
+                                    })
                                 } else {
-                                    console.log('Appointment created successfully:', newAppointment)
-
                                     await supabase
                                         .from('leads')
                                         .update({ status: 'agendado' })
@@ -507,7 +519,6 @@ Te esperamos! Si necesitas cambiar tu cita, avísanos.`
                                     })
                                 }
                             } else {
-                                // Fix 3: Usar objeto Date limpio para slots
                                 const targetDate = new Date(appointmentIntent.date)
 
                                 const { data: availableSlots, error: slotsError } = await supabase
@@ -541,7 +552,6 @@ Responde con el horario que prefieras.`
                                 } else {
                                     await sendWhatsApp('❌ Lo siento, ese horario no está disponible. ¿Podrías sugerir otro día u hora?')
                                 }
-
                                 return new Response(JSON.stringify({ status: 'ok', suggested_alternatives: true }), {
                                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                                     status: 200,
@@ -573,19 +583,62 @@ Responde con el horario que prefieras.`
                 }
                 // ========== END APPOINTMENT LOGIC ==========
 
+                // ========== MENU & CHAT LOGIC (RESTORED) ==========
                 const body = messageContent.trim().toLowerCase()
                 let responseText = ''
 
-                if (body.includes('hola') || body.includes('buenos') || body.includes('buenas')) {
-                    responseText = '¡Hola! 👋 Bienvenido a Óptica Lyon Visión. ¿En qué puedo ayudarte hoy?'
-                } else if (body.includes('precio') || body.includes('costo') || body.includes('cuanto')) {
-                    responseText = 'Nuestros precios varían según el tipo de lentes y monturas. ¿Te gustaría agendar una cita para un examen visual? Es completamente gratis.'
-                } else if (body.includes('horario') || body.includes('abierto') || body.includes('atienden')) {
-                    responseText = 'Nuestro horario es de Lunes a Viernes de 9:00 AM a 6:00 PM, y Sábados de 9:00 AM a 2:00 PM.'
-                } else if (body.includes('ubicacion') || body.includes('direccion') || body.includes('donde')) {
-                    responseText = 'Estamos ubicados en [Tu dirección aquí]. ¿Te gustaría que te enviemos la ubicación exacta?'
-                } else {
-                    responseText = 'Gracias por tu mensaje. Un asesor te atenderá pronto. Si deseas agendar una cita, escribe "agendar cita".'
+                // Menú Principal (Restaurado)
+                if (body.includes('hola') || body.includes('buenos') || body.includes('buenas') || body === 'menu') {
+                    responseText = `Hola 👋 gracias por escribir a Óptica Lyon Visión.
+
+¿En qué podemos ayudarte hoy?
+
+1️⃣ Examen visual
+2️⃣ Lentes formulados
+3️⃣ Monturas
+4️⃣ Promociones
+
+Responde con el número de tu interés.`
+                }
+
+                // Opción 1: Examen Visual (Conecta con agendamiento)
+                else if (body === '1' || body.includes('examen')) {
+                    responseText = `👁️ ¡Excelente decisión! Para agendar tu *Examen Visual*, por favor indícanos qué día y hora te convendría. Nuestro equipo confirmará la disponibilidad enseguida.
+
+_Ejemplo: "Mañana a las 3pm"_`
+                }
+
+                // Opción 2: Lentes Formulados
+                else if (body === '2' || body.includes('lentes')) {
+                    responseText = `👓 Para cotizar tus lentes formulados, necesitamos tu receta.
+                    
+¿Podrías enviarnos una foto de tu receta médica? Si no la tienes, puedes elegir la opción 1 para agendar un examen.`
+                }
+
+                // Opción 3: Monturas
+                else if (body === '3' || body.includes('montura')) {
+                    responseText = `Tenemos una gran variedad de monturas de moda y clásicas. 🕶️
+                    
+¿Buscas algún estilo en particular? (Metálicas, acetato, redondas, cuadradas...)`
+                }
+
+                // Opción 4: Promociones
+                else if (body === '4' || body.includes('promo')) {
+                    responseText = `🔥 ¡Promociones del mes!
+                    
+- 2x1 en monturas seleccionadas
+- Examen visual GRATIS con la compra de tus lentes
+- 20% de descuento en lentes Blue Block`
+                }
+
+                // Fallback / Otros
+                else if (body.includes('precio') || body.includes('costo')) {
+                    responseText = 'Nuestros precios varían según el tipo de lentes y monturas. ¿Te gustaría agendar una cita para un examen visual? Es completamente gratis (Opción 1).'
+                } else if (body.includes('ubicacion') || body.includes('direccion')) {
+                    responseText = 'Estamos ubicados en [Tu dirección aquí].'
+                } else if (!appointmentIntent.hasIntent && !appointmentIntent.date && !appointmentIntent.time) {
+                    // Solo responde genérico si NO es un intento de cita que ya fue procesado arriba
+                    responseText = 'Gracias por tu mensaje. Un asesor te atenderá pronto. Si deseas ver las opciones nuevamente, escribe "Hola".'
                 }
 
                 if (responseText) {
