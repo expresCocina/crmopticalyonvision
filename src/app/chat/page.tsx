@@ -30,33 +30,6 @@ export default function ChatPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
 
-    // Handle mobile keyboard visibility
-    useEffect(() => {
-        const handleResize = () => {
-            // Only on mobile
-            if (window.innerWidth < 768) {
-                const visualViewport = window.visualViewport
-                if (visualViewport) {
-                    // Adjust chat container when keyboard appears
-                    const chatContainer = document.getElementById('chat-container')
-                    if (chatContainer) {
-                        chatContainer.style.height = `${visualViewport.height}px`
-                    }
-                }
-            }
-        }
-
-        if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', handleResize)
-            window.visualViewport.addEventListener('scroll', handleResize)
-
-            return () => {
-                window.visualViewport?.removeEventListener('resize', handleResize)
-                window.visualViewport?.removeEventListener('scroll', handleResize)
-            }
-        }
-    }, [])
-
     const activeLead = leads.find(l => l.id === activeLeadId)
 
     const filteredLeads = leads.filter(l =>
@@ -75,7 +48,7 @@ export default function ChatPage() {
     const showChatOnMobile = !!activeLeadId
 
     return (
-        <div id="chat-container" className="h-[calc(100vh-3.5rem)] md:h-[calc(100vh-4rem)] flex border rounded-lg overflow-hidden bg-card shadow-sm">
+        <div className="min-h-[calc(100vh-3.5rem)] md:h-[calc(100vh-4rem)] flex border rounded-lg overflow-hidden bg-card shadow-sm">
 
             {/* Sidebar: Conversation List - Hidden on mobile when chat is active */}
             <div className={cn(
