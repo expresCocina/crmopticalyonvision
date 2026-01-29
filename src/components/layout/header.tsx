@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import type { User } from '@supabase/supabase-js'
+import { NotificationPermission } from '@/components/notification-permission'
 
 export function Header() {
     const [open, setOpen] = useState(false)
@@ -84,6 +85,9 @@ export function Header() {
                         </span>
                     </div>
                 )}
+
+                {/* Notification Permission */}
+                <NotificationPermission />
 
                 {/* User Avatar */}
                 <div className="h-8 w-8 md:h-9 md:w-9 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
