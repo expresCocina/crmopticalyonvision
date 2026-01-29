@@ -135,7 +135,7 @@ export default function ChatPage() {
 
             {/* Main Chat Area - Full screen on mobile when active */}
             <div className={cn(
-                "flex-1 flex flex-col bg-background relative",
+                "flex-1 flex flex-col bg-background",
                 !showChatOnMobile && "hidden md:flex"
             )}>
                 {activeLead ? (
@@ -173,8 +173,8 @@ export default function ChatPage() {
                             </Button>
                         </div>
 
-                        {/* Messages List - Takes remaining space with padding for input */}
-                        <div className="flex-1 p-3 md:p-6 pb-20 md:pb-24 overflow-y-auto scroll-smooth-ios space-y-3 md:space-y-4 bg-muted/5">
+                        {/* Messages List */}
+                        <div className="flex-1 overflow-y-auto scroll-smooth-ios p-3 md:p-6 space-y-3 md:space-y-4 bg-muted/5">
                             {loadingMessages ? (
                                 <div className="flex justify-center pt-10"><Loader2 className="animate-spin text-muted-foreground" /></div>
                             ) : messages.length === 0 ? (
@@ -210,20 +210,20 @@ export default function ChatPage() {
                             <div ref={messagesEndRef} />
                         </div>
 
-                        {/* Input Area - Absolutely positioned at bottom */}
-                        <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4 border-t bg-card">
+                        {/* Input Area - Sticky at bottom */}
+                        <div className="flex-shrink-0 p-3 md:p-4 border-t bg-card">
                             <form onSubmit={handleSend} className="flex gap-2">
-                                <Input
+                                <input
+                                    type="text"
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     placeholder="Escribe un mensaje..."
-                                    className="flex-1 text-base"
-                                    style={{ fontSize: '16px' }}
+                                    className="flex-1 px-3 py-3 text-base border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                                 />
                                 <Button
                                     type="submit"
                                     disabled={!input.trim()}
-                                    className="min-w-[48px] min-h-[48px] flex-shrink-0"
+                                    className="w-12 h-12 flex-shrink-0 p-0"
                                 >
                                     <Send className="h-5 w-5" />
                                 </Button>
