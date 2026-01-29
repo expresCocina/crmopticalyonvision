@@ -14,6 +14,14 @@ const fontSans = FontSans({
 export const metadata: Metadata = {
   title: "CRM Óptica Lyon Visión",
   description: "Sistema CRM para Óptica Lyon Visión",
+  manifest: "/manifest.json",
+  icons: {
+    apple: "/icons/icon-512x512.png",
+  },
+};
+
+export const viewport = {
+  themeColor: "#000000",
 };
 
 export default function RootLayout({

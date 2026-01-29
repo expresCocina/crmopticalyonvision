@@ -46,10 +46,84 @@ export function useChat() {
             })
             .subscribe()
 
+        // Request Notification Permission on Mount
+        if ('Notification' in window && Notification.permission !== 'granted') {
+            Notification.requestPermission()
+        }
+
         return () => {
             supabase.removeChannel(channel)
         }
     }, [supabase])
+
+    // Helper: Play Sound
+    const playNotificationSound = () => {
+        try {
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3') // Short distinct ping
+            audio.play().catch(e => console.error("Error playing sound:", e))
+        } catch (e) {
+            console.error("Audio error:", e)
+        }
+    }
+
+    // Helper: Show System Notification
+    const showNotification = (title: string, body: string) => {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            try {
+                // Check if service worker is ready for mobile notifications (PWA)
+                navigator.serviceWorker.ready.then(registration => {
+                    registration.showNotification(title, {
+                        body: body,
+                        icon: '/icons/icon-192x192.png',
+                        vibrate: [200, 100, 200],
+                        tag: 'new-message'
+                    } as any)
+                }).catch(() => {
+                    // Fallback to desktop notification
+                    new Notification(title, {
+                        body: body,
+                        icon: '/icons/icon-192x192.png'
+                    })
+                })
+            } catch (e) {
+                new Notification(title, { body })
+            }
+        }
+    }
+
+    // 2. Fetch Messages for Active Lead (Logic kept same, just adding notification to Global Listener)
+    // NOTE: The separate channel for 'chat_messages' might be redundant if we want global notifications. 
+    // We need a global listener for ALL messages to notify even if chat is not active.
+
+    // 1.1 Global Message Listener for Notifications (New)
+    useEffect(() => {
+        const channel = supabase.channel('global_notifications')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: "direction=eq.inbound" }, async (payload) => {
+                const newMessage = payload.new as Message
+
+                // If the message is from the active lead and window is focused, maybe just sound?
+                // But for PWA, we usually want notification if app is in background.
+
+                // Ideally we check document.hidden or if activeLeadId !== newMessage.lead_id
+                const isHidden = document.hidden
+                const isOtherChat = activeLeadId !== newMessage.lead_id
+
+                if (isHidden || isOtherChat) {
+                    playNotificationSound()
+
+                    // Fetch lead name for better notification
+                    const { data: lead } = await supabase.from('leads').select('full_name').eq('id', newMessage.lead_id).single()
+                    const senderName = lead?.full_name || 'Nuevo Mensaje'
+
+                    showNotification(`Mensaje de ${senderName}`, newMessage.content)
+                }
+            })
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
+    }, [supabase, activeLeadId])
 
     // 2. Fetch Messages for Active Lead
     useEffect(() => {
