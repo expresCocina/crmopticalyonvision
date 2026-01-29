@@ -34,7 +34,7 @@ export function useLeads() {
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'leads' },
                 (payload: any) => {
-                    console.log('Realtime update:', payload)
+
                     if (payload.eventType === 'INSERT') {
                         setLeads((prev) => [payload.new as Lead, ...prev])
                     } else if (payload.eventType === 'UPDATE') {

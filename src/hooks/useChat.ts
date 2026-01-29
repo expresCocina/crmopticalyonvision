@@ -111,7 +111,8 @@ export function useChat() {
             }
 
             // Success - the Edge Function handles database insert and WhatsApp API call
-            console.log('Message sent successfully:', data)
+
+
 
         } catch (err) {
             console.error('Exception sending message:', err)
