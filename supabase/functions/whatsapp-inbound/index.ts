@@ -236,9 +236,9 @@ serve(async (req) => {
             const data = await response.json()
 
             if (response.ok) {
-                // Save interactive message as text representation for CRM readability
+                // Save interactive message for CRM (without technical tags)
                 await supabase.from('messages').insert({
-                    lead_id: leadId, content: bodyText + ' [INTERACTIVE]', type: 'interactive', direction: 'outbound', status: 'sent', wa_message_id: data.messages?.[0]?.id
+                    lead_id: leadId, content: bodyText, type: 'interactive', direction: 'outbound', status: 'sent', wa_message_id: data.messages?.[0]?.id
                 })
             } else {
                 console.error('Error sending interactive:', data)

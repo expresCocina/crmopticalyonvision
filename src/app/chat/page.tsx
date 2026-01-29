@@ -214,7 +214,7 @@ export default function ChatPage() {
                                     return (
                                         <div key={msg.id} className={cn("flex", isOutbound ? "justify-end" : "justify-start")}>
                                             <div className={cn(
-                                                "max-w-[85%] md:max-w-[70%] rounded-2xl px-3 md:px-4 py-2 text-sm shadow-sm",
+                                                "max-w-[70%] md:max-w-[70%] rounded-2xl px-3 md:px-4 py-2 text-sm shadow-sm",
                                                 isOutbound
                                                     ? "bg-primary text-primary-foreground rounded-tr-sm"
                                                     : "bg-white border rounded-tl-sm"
