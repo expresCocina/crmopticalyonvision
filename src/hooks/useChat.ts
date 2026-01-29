@@ -115,7 +115,7 @@ export function useChat() {
                     const { data: lead } = await supabase.from('leads').select('full_name').eq('id', newMessage.lead_id).single()
                     const senderName = lead?.full_name || 'Nuevo Mensaje'
 
-                    showNotification(`Mensaje de ${senderName}`, newMessage.content)
+                    showNotification(`Mensaje de ${senderName}`, newMessage.content || '')
                 }
             })
             .subscribe()
