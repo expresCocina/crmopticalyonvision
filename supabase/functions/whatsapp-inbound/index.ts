@@ -159,7 +159,7 @@ serve(async (req) => {
             const { data: lead } = await supabase.from('leads').select('full_name').eq('id', leadId).single()
             const senderName = lead?.full_name || 'Nuevo Mensaje'
 
-            await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-push`, {
+            fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-push`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
