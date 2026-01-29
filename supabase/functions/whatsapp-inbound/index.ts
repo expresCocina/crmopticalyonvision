@@ -374,6 +374,7 @@ serve(async (req) => {
         if (!handled) {
             if (/hola|buenos|buenas|menu/.test(body)) {
                 await sendMainMenu()
+                handled = true
             } else if (/ubicacion|donde estan|direccion/.test(body)) {
                 // Re-use logic key
                 await sendInteractiveMessage(`📍 *Sedes:*\n\n1️⃣ *Principal:* Cra. 19C # 26-51, Barrio Rafael Uribe Uribe\n2️⃣ *Centro:* Cl. 18 # 8-62, Bogotá`, {
@@ -384,6 +385,7 @@ serve(async (req) => {
                         ]
                     }
                 })
+                handled = true
             } else if (lastAssistantMessage.includes('Para tu examen visual')) {
                 // Fallback for typed numbers in Exam Flow
                 if (body === '1') {
