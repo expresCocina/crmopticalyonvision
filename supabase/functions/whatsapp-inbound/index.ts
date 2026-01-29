@@ -360,8 +360,7 @@ serve(async (req) => {
             if (lastAssistantMessage.includes('Promociones')) contextText = 'Hola, me interesan las promociones.'
             if (selectedId === 'action_advisor_location') contextText = 'Hola, necesito la ubicación exacta.'
 
-            const link = `https://wa.me/573186812518?text=${encodeURIComponent(contextText)}`
-            await sendWhatsApp(`💬 *Contactando Asesor...*\n\nHaz clic aquí para chatear directamente:\n${link}`)
+            await sendWhatsApp(`💬 Un asesor te atenderá pronto.\n\nEscríbenos: wa.me/573186812518`)
             handled = true
         } else if (selectedId === 'exam_yes' || selectedId === 'exam_no') {
             const messageText = selectedId === 'exam_yes' ? 'Hola, ya tengo mi examen y quiero cotizar lentes.' : 'Hola, quiero agendar un examen visual.'
