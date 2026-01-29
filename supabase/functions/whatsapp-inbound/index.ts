@@ -192,28 +192,57 @@ serve(async (req) => {
             }
         }
 
+        // 3.5. Obtener contexto de conversación (último mensaje enviado por el bot)
+        const { data: lastOutbound } = await supabase
+            .from('messages')
+            .select('content, created_at')
+            .eq('lead_id', leadId)
+            .eq('direction', 'outbound')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+        const lastAssistantMessage = lastOutbound?.content || ''
+
         // 4. Lógica de Menú e Inteligencia de Respuestas
         const body = messageContent.trim().toLowerCase()
         let responseText = ''
-        if (/hola|buenos|buenas|menu/.test(body)) {
-            responseText = `Hola 👋 Bienvenido a Óptica Lyon Visión.\n\n1️⃣ Examen visual\n2️⃣ Lentes formulados\n3️⃣ Monturas\n4️⃣ Promociones`
-        } else if (body === '1') {
-            responseText = `👁️ ¡Excelente decisión! Dime qué día y hora prefieres para tu examen. Ej: 'Mañana a las 3pm'`
-        } else if (body === '2') {
-            responseText = `👓 Envíanos una foto de tu receta para cotizar tus lentes.`
-        } else if (body === '3') {
-            responseText = `🕶️ Tenemos gran variedad de monturas. ¿Buscas algún estilo en particular?`
-        } else if (body === '4') {
-            responseText = `🔥 ¡Promociones! 2x1 en monturas seleccionadas y examen GRATIS por tu compra.`
-        } else if (/precio|costo|cuanto vale/.test(body)) {
-            responseText = `Nuestros precios dependen de tus lentes. El examen es GRATIS por la compra de tus gafas. ¿Te agendo una cita?`
-        } else if (/ubicacion|donde estan|direccion/.test(body)) {
-            responseText = `Estamos ubicados en Neiva, Huila. ¡Visítanos!`
-        } else {
-            responseText = `Gracias por tu mensaje. Un asesor te atenderá pronto. Si quieres ver las opciones de nuevo, escribe "Hola".`
+        const advisorLink = `\n\n💬 *Hablar con asesor ahora:* https://wa.me/573186812518`
+
+        const getServicesMenu = () => {
+            return `🛠️ *Nuestros Servicios:*\n\n• Exámenes visuales 👁️\n• Venta de monturas 👓\n• Venta de lentes 🔍\n• Reparaciones 🔧\n• Monturas de sol 🕶️`
         }
 
-        if (responseText) await sendWhatsApp(responseText)
+        // Lógica de Contexto (Respuestas anidadas)
+        if (lastAssistantMessage.includes('Para tu examen visual')) {
+            if (body === '1' || body === '2') {
+                responseText = `Un asesor te contactará para agendar tu examen. 👩‍⚕️`
+            }
+        }
+
+        if (!responseText) {
+            if (/hola|buenos|buenas|menu/.test(body)) {
+                responseText = `Hola 👋 Bienvenido a Óptica Lyon Visión.\n\n1️⃣ Examen visual\n2️⃣ Lentes formulados\n3️⃣ Monturas\n4️⃣ Promociones\n5️⃣ Servicios\n6️⃣ Ubicación`
+            } else if (body === '1') {
+                responseText = `👁️ *Para tu examen visual:*\n\n1️⃣ ¿Ya tienes tu examen?\n2️⃣ ¿Quieres realizarte el examen?`
+            } else if (body === '2') {
+                responseText = `👓 Envíanos una foto de tu receta para cotizar tus lentes.`
+            } else if (body === '3') {
+                responseText = `🕶️ Tenemos gran variedad de monturas. ¿Buscas algún estilo en particular?`
+            } else if (body === '4') {
+                responseText = `🔥 *Promociones Especiales:*\n\n🔹 *Lentes Progresivos Gama Alta:* Compra unos y lleva el 2º par solo visión lejana.\n\n🔹 *Lentes Transitions:* Compra unos y lleva el 2º par antirreflejo con 50% de descuento.\n\n🔹 *Lentes Fotosensibles:* Compra unos y lleva tu montura de sol ¡GRATIS! 🕶️\n\n📢 *Nota:* Todas nuestras promociones incluyen mantenimiento de lentes y montura totalmente GRATIS.`
+            } else if (body === '5') {
+                responseText = getServicesMenu()
+            } else if (body === '6' || /ubicacion|donde estan|direccion/.test(body)) {
+                responseText = `📍 *Sedes Óptica Lyon Visión:*\n\n1️⃣ *Sede Principal:* Cra. 19C # 26-51, Barrio Rafael Uribe Uribe\n2️⃣ *Sede Centro:* Cl. 18 # 8-62, Bogotá\n\n¡Visítanos en la que te quede más cerca!`
+            } else if (/precio|costo|cuanto vale/.test(body)) {
+                responseText = `Nuestros precios dependen de tus lentes. El examen es GRATIS por la compra de tus gafas. ¿Te agendo una cita?`
+            } else {
+                responseText = `Gracias por tu mensaje. Un asesor te atenderá pronto. Si quieres ver las opciones de nuevo, escribe "Hola".`
+            }
+        }
+
+        if (responseText) await sendWhatsApp(responseText + advisorLink)
 
         return new Response(JSON.stringify({ status: 'ok' }), { headers: corsHeaders })
     } catch (error) {
