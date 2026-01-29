@@ -401,10 +401,7 @@ serve(async (req) => {
                 }
             }
 
-            if (!handled) {
-                // Default fallback to Main Menu for unknown inputs
-                await sendMainMenu()
-            }
+            // NO DEFAULT FALLBACK - Solo responder cuando el usuario pida ayuda explícitamente
         }
 
         return new Response(JSON.stringify({ status: 'ok' }), { headers: corsHeaders })

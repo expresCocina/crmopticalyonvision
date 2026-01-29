@@ -210,17 +210,22 @@ export default function ChatPage() {
                             <div ref={messagesEndRef} />
                         </div>
 
-                        {/* Input Area - Sticky bottom with safe area */}
-                        <div className="p-3 md:p-4 border-t bg-card sticky bottom-0 safe-bottom">
+                        {/* Input Area - Fixed to viewport bottom */}
+                        <div className="p-3 md:p-4 border-t bg-card">
                             <form onSubmit={handleSend} className="flex gap-2">
                                 <Input
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     placeholder="Escribe un mensaje..."
-                                    className="flex-1 min-h-[44px]"
+                                    className="flex-1 text-base"
+                                    style={{ fontSize: '16px' }}
                                 />
-                                <Button type="submit" disabled={!input.trim()} className="min-w-[44px] min-h-[44px]">
-                                    <Send className="h-4 w-4" />
+                                <Button
+                                    type="submit"
+                                    disabled={!input.trim()}
+                                    className="min-w-[48px] min-h-[48px] flex-shrink-0"
+                                >
+                                    <Send className="h-5 w-5" />
                                 </Button>
                             </form>
                         </div>
