@@ -48,7 +48,7 @@ export default function ChatPage() {
     const showChatOnMobile = !!activeLeadId
 
     return (
-        <div className="h-[calc(100vh-3.5rem)] md:h-[calc(100vh-4rem)] flex border rounded-lg overflow-hidden bg-card shadow-sm">
+        <div className="h-[calc(100dvh-3.5rem)] md:h-[calc(100vh-4rem)] flex border rounded-lg overflow-hidden bg-card shadow-sm">
 
             {/* Sidebar: Conversation List - Hidden on mobile when chat is active */}
             <div className={cn(
@@ -68,7 +68,7 @@ export default function ChatPage() {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto scroll-smooth-ios scrollbar-hide">
                     {loadingLeads ? (
                         <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
                     ) : filteredLeads.length === 0 ? (
@@ -174,7 +174,7 @@ export default function ChatPage() {
                         </div>
 
                         {/* Messages List */}
-                        <div className="flex-1 p-3 md:p-6 overflow-y-auto space-y-3 md:space-y-4 bg-muted/5">
+                        <div className="flex-1 p-3 md:p-6 overflow-y-auto scroll-smooth-ios space-y-3 md:space-y-4 bg-muted/5">
                             {loadingMessages ? (
                                 <div className="flex justify-center pt-10"><Loader2 className="animate-spin text-muted-foreground" /></div>
                             ) : messages.length === 0 ? (
@@ -211,7 +211,7 @@ export default function ChatPage() {
                         </div>
 
                         {/* Input Area - Sticky bottom with safe area */}
-                        <div className="p-3 md:p-4 border-t bg-card sticky bottom-0">
+                        <div className="p-3 md:p-4 border-t bg-card sticky bottom-0 safe-bottom">
                             <form onSubmit={handleSend} className="flex gap-2">
                                 <Input
                                     value={input}

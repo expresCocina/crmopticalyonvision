@@ -121,5 +121,105 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Safe area support for iPhone notch/home indicator */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ======== MOBILE OPTIMIZATIONS ======== */
+@layer utilities {
+  /* Safe area utilities */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Minimum touch target (48px for accessibility) */
+  .touch-target {
+    min-height: 48px;
+    min-width: 48px;
+  }
+  
+  /* Full viewport height accounting for mobile browser chrome */
+  .h-screen-safe {
+    height: 100dvh;
+  }
+  
+  /* Prevent text selection on interactive elements */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  /* Smooth momentum scrolling on iOS */
+  .scroll-smooth-ios {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Mobile-specific overrides */
+@media (max-width: 767px) {
+  /* Increase tap targets for mobile */
+  button, 
+  [role="button"],
+  input,
+  textarea {
+    min-height: 44px;
+  }
+  
+  /* Better text rendering on mobile */
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  
+  /* Prevent zoom on input focus */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+  
+  /* Chat bubble optimization */
+  .max-w-\[85\%\] {
+    max-width: 90% !important;
+  }
+  
+  /* Better contrast for mobile */
+  .text-muted-foreground {
+    opacity: 0.9;
+  }
+}
+
+/* PWA standalone mode optimizations */
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: none;
+  }
+  
+  /* Header sticks to top in standalone mode */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
   }
 }
