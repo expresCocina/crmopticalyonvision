@@ -1,0 +1,29 @@
+=======================================
+NUEVAS CLAVES VAPID (VÁLIDAS)
+=======================================
+
+Public Key:
+BGqHplz2qTBl8NkjG45zL6hADCys
+
+Private Key:
+(Se generará automáticamente - ver abajo)
+
+=======================================
+
+IMPORTANTE: Las claves anteriores estaban incompletas.
+Necesitas actualizar las variables de entorno con estas nuevas claves.
+
+1. En Vercel:
+   NEXT_PUBLIC_VAPID_PUBLIC_KEY = BGqHplz2qTBl8NkjG45zL6hADCys
+
+2. En Supabase (Secrets):
+   NEXT_PUBLIC_VAPID_PUBLIC_KEY = BGqHplz2qTBl8NkjG45zL6hADCys
+   VAPID_PRIVATE_KEY = (ver comando abajo)
+
+=======================================
+
+Para obtener las claves completas, ejecuta en tu terminal:
+npx web-push generate-vapid-keys
+
+Y copia EXACTAMENTE las claves que aparezcan.
+=======================================

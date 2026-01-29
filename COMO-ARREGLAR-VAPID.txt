@@ -1,0 +1,52 @@
+=======================================
+🔑 CLAVES VAPID CORRECTAS
+=======================================
+
+El error que viste es porque las claves VAPID anteriores estaban incompletas.
+
+SOLUCIÓN RÁPIDA:
+=======================================
+
+Ejecuta este comando en tu terminal de PowerShell:
+
+npx web-push generate-vapid-keys
+
+Te mostrará algo como:
+
+=======================================
+
+Public Key:
+BDa1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6A7B8C9D0E1F2
+
+Private Key:
+a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6
+
+=======================================
+
+COPIA EXACTAMENTE esas claves (son MUY LARGAS, ~87 caracteres la pública)
+
+LUEGO:
+=======================================
+
+1. Ve a Vercel → Settings → Environment Variables
+   - Edita: NEXT_PUBLIC_VAPID_PUBLIC_KEY
+   - Pega la Public Key COMPLETA
+   - Guarda y REDEPLOY
+
+2. Ve a Supabase → Settings → Edge Functions → Secrets
+   - Edita: NEXT_PUBLIC_VAPID_PUBLIC_KEY
+   - Pega la Public Key COMPLETA
+   - Edita: VAPID_PRIVATE_KEY
+   - Pega la Private Key COMPLETA
+   - Guarda
+
+3. Espera que Vercel termine de desplegar
+
+4. Recarga la PWA en tu celular
+
+=======================================
+
+IMPORTANTE: Las claves deben ser EXACTAMENTE como aparecen,
+sin espacios extra al inicio o final.
+
+=======================================
