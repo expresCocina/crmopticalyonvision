@@ -204,45 +204,206 @@ serve(async (req) => {
 
         const lastAssistantMessage = lastOutbound?.content || ''
 
+        // HELPER: Send Interactive Message
+        const sendInteractiveMessage = async (bodyText: string, interactiveData: any) => {
+            const messagePayload = {
+                messaging_product: 'whatsapp',
+                to: wa_id,
+                type: 'interactive',
+                interactive: {
+                    type: interactiveData.type,
+                    body: { text: bodyText },
+                    action: interactiveData.action
+                }
+            }
+
+            // Si es list_message, el body text va en 'section' title no aqui, estructura diferente para LIST
+            if (interactiveData.type === 'list') {
+                messagePayload.interactive.action = {
+                    button: interactiveData.action.button,
+                    sections: interactiveData.action.sections
+                }
+            }
+
+            // Log payload for debug
+            console.log('Sending Interactive:', JSON.stringify(messagePayload))
+
+            const response = await fetch(`https://graph.facebook.com/v24.0/${Deno.env.get('WHATSAPP_PHONE_ID')}/messages`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${Deno.env.get('WHATSAPP_API_TOKEN')}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(messagePayload)
+            })
+            const data = await response.json()
+
+            if (response.ok) {
+                // Save interactive message as text representation for CRM readability
+                await supabase.from('messages').insert({
+                    lead_id: leadId, content: bodyText + ' [INTERACTIVE]', type: 'interactive', direction: 'outbound', status: 'sent', wa_message_id: data.messages?.[0]?.id
+                })
+            } else {
+                console.error('Error sending interactive:', data)
+                // Fallback to text if interactive fails
+                await sendWhatsApp(bodyText)
+            }
+        }
+
         // 4. Lógica de Menú e Inteligencia de Respuestas
         const body = messageContent.trim().toLowerCase()
-        let responseText = ''
-        const advisorLink = `\n\n💬 *Hablar con asesor ahora:* https://wa.me/573186812518`
+        let handled = false
 
-        const getServicesMenu = () => {
-            return `🛠️ *Nuestros Servicios:*\n\n• Exámenes visuales 👁️\n• Venta de monturas 👓\n• Venta de lentes 🔍\n• Reparaciones 🔧\n• Monturas de sol 🕶️`
+        // --- DEFINICIÓN DE MENÚ PRINCIPAL (LIST) ---
+        const sendMainMenu = async () => {
+            await sendInteractiveMessage('Hola 👋 Bienvenido a Óptica Lyon Visión. ¿En qué podemos ayudarte hoy?', {
+                type: 'list',
+                action: {
+                    button: 'Ver Opciones',
+                    sections: [
+                        {
+                            title: 'Nuestros Servicios',
+                            rows: [
+                                { id: 'menu_examen', title: 'Examen Visual', description: 'Agenda tu cita' },
+                                { id: 'menu_lentes', title: 'Lentes Formulados', description: 'Cotiza tu fórmula' },
+                                { id: 'menu_monturas', title: 'Monturas', description: 'Estilos y tendencias' },
+                                { id: 'menu_promos', title: 'Promociones', description: 'Ofertas especiales' },
+                                { id: 'menu_servicios', title: 'Todos los Servicios', description: 'Reparaciones y más' },
+                                { id: 'menu_ubicacion', title: 'Ubicación', description: 'Nuestras sedes' }
+                            ]
+                        },
+                        {
+                            title: 'Atención Personalizada',
+                            rows: [
+                                { id: 'action_advisor', title: 'Hablar con Asesor', description: 'Chatea con un experto' }
+                            ]
+                        }
+                    ]
+                }
+            })
         }
 
-        // Lógica de Contexto (Respuestas anidadas)
-        if (lastAssistantMessage.includes('Para tu examen visual')) {
-            if (body === '1' || body === '2') {
-                responseText = `Un asesor te contactará para agendar tu examen. 👩‍⚕️`
-            }
+        // --- LÓGICA DE RESPUESTA ---
+
+        // 1. Detección de selección de lista o botón
+        let selectedId = ''
+        if (message.type === 'interactive') {
+            const intType = message.interactive.type
+            if (intType === 'list_reply') selectedId = message.interactive.list_reply.id
+            if (intType === 'button_reply') selectedId = message.interactive.button_reply.id
         }
 
-        if (!responseText) {
+        // 2. Mapeo de selecciones a lógica
+        if (selectedId === 'menu_examen' || body === '1') {
+            await sendInteractiveMessage('👁️ *Para tu examen visual:*', {
+                type: 'button',
+                action: {
+                    buttons: [
+                        { type: 'reply', reply: { id: 'exam_yes', title: 'Ya tengo examen' } },
+                        { type: 'reply', reply: { id: 'exam_no', title: 'Quiero examen' } }
+                    ]
+                }
+            })
+            handled = true
+        } else if (selectedId === 'menu_lentes' || body === '2') {
+            await sendInteractiveMessage('👓 *Lentes Formulados:*\nEnvíanos una foto de tu receta médica para cotizar tus lentes.', {
+                type: 'button',
+                action: {
+                    buttons: [
+                        { type: 'reply', reply: { id: 'action_advisor_sales', title: 'Hablar con Asesor' } }
+                    ]
+                }
+            })
+            handled = true
+        } else if (selectedId === 'menu_monturas' || body === '3') {
+            await sendInteractiveMessage('🕶️ *Monturas:*\nTenemos gran variedad de estilos. ¿Buscas algo en particular?', {
+                type: 'button',
+                action: {
+                    buttons: [
+                        { type: 'reply', reply: { id: 'action_advisor_sales', title: 'Ver Catálogo' } }
+                    ]
+                }
+            })
+            handled = true
+        } else if (selectedId === 'menu_promos' || body === '4') {
+            await sendInteractiveMessage(`🔥 *Promociones Especiales:*\n\n🔹 *Progresivos:* 2º par lejos GRATIS.\n🔹 *Transitions:* 2º par antirreflejo 50% OFF.\n🔹 *Fotosensibles:* Montura sol GRATIS.\n\n_Incluye mantenimiento gratis._`, {
+                type: 'button',
+                action: {
+                    buttons: [
+                        { type: 'reply', reply: { id: 'action_advisor_promo', title: 'Quiero una Promo' } }
+                    ]
+                }
+            })
+            handled = true
+        } else if (selectedId === 'menu_servicios' || body === '5') {
+            await sendInteractiveMessage(`🛠️ *Servicios:*\n• Exámenes visuales\n• Venta de monturas y lentes\n• Reparaciones\n• Monturas de sol`, {
+                type: 'button',
+                action: {
+                    buttons: [
+                        { type: 'reply', reply: { id: 'action_advisor_general', title: 'Más Información' } }
+                    ]
+                }
+            })
+            handled = true
+        } else if (selectedId === 'menu_ubicacion' || body === '6') {
+            await sendInteractiveMessage(`📍 *Sedes:*\n\n1️⃣ *Principal:* Cra. 19C # 26-51, Barrio Rafael Uribe Uribe\n2️⃣ *Centro:* Cl. 18 # 8-62, Bogotá`, {
+                type: 'button',
+                action: {
+                    buttons: [
+                        { type: 'reply', reply: { id: 'action_advisor_location', title: 'Ubicación Exacta' } }
+                    ]
+                }
+            })
+            handled = true
+        } else if (selectedId === 'action_advisor' || selectedId.startsWith('action_advisor_')) {
+            // Lógica Inteligente para Asesor
+            let contextText = 'Hola, quiero hablar con un asesor.'
+            if (lastAssistantMessage.includes('examen')) contextText = 'Hola, quiero agendar un examen visual.'
+            if (lastAssistantMessage.includes('Lentes')) contextText = 'Hola, quiero cotizar mis lentes.'
+            if (lastAssistantMessage.includes('Promociones')) contextText = 'Hola, me interesan las promociones.'
+            if (selectedId === 'action_advisor_location') contextText = 'Hola, necesito la ubicación exacta.'
+
+            const link = `https://wa.me/573186812518?text=${encodeURIComponent(contextText)}`
+            await sendWhatsApp(`💬 *Contactando Asesor...*\n\nHaz clic aquí para chatear directamente:\n${link}`)
+            handled = true
+        } else if (selectedId === 'exam_yes' || selectedId === 'exam_no') {
+            const messageText = selectedId === 'exam_yes' ? 'Hola, ya tengo mi examen y quiero cotizar lentes.' : 'Hola, quiero agendar un examen visual.'
+            const link = `https://wa.me/573186812518?text=${encodeURIComponent(messageText)}`
+            await sendWhatsApp(`Perfecto. Un asesor te ayudará con el siguiente paso:\n${link}`)
+            handled = true
+        }
+
+        // Detección de palabras clave si no es interactivo
+        if (!handled) {
             if (/hola|buenos|buenas|menu/.test(body)) {
-                responseText = `Hola 👋 Bienvenido a Óptica Lyon Visión.\n\n1️⃣ Examen visual\n2️⃣ Lentes formulados\n3️⃣ Monturas\n4️⃣ Promociones\n5️⃣ Servicios\n6️⃣ Ubicación`
-            } else if (body === '1') {
-                responseText = `👁️ *Para tu examen visual:*\n\n1️⃣ ¿Ya tienes tu examen?\n2️⃣ ¿Quieres realizarte el examen?`
-            } else if (body === '2') {
-                responseText = `👓 Envíanos una foto de tu receta para cotizar tus lentes.`
-            } else if (body === '3') {
-                responseText = `🕶️ Tenemos gran variedad de monturas. ¿Buscas algún estilo en particular?`
-            } else if (body === '4') {
-                responseText = `🔥 *Promociones Especiales:*\n\n🔹 *Lentes Progresivos Gama Alta:* Compra unos y lleva el 2º par solo visión lejana.\n\n🔹 *Lentes Transitions:* Compra unos y lleva el 2º par antirreflejo con 50% de descuento.\n\n🔹 *Lentes Fotosensibles:* Compra unos y lleva tu montura de sol ¡GRATIS! 🕶️\n\n📢 *Nota:* Todas nuestras promociones incluyen mantenimiento de lentes y montura totalmente GRATIS.`
-            } else if (body === '5') {
-                responseText = getServicesMenu()
-            } else if (body === '6' || /ubicacion|donde estan|direccion/.test(body)) {
-                responseText = `📍 *Sedes Óptica Lyon Visión:*\n\n1️⃣ *Sede Principal:* Cra. 19C # 26-51, Barrio Rafael Uribe Uribe\n2️⃣ *Sede Centro:* Cl. 18 # 8-62, Bogotá\n\n¡Visítanos en la que te quede más cerca!`
-            } else if (/precio|costo|cuanto vale/.test(body)) {
-                responseText = `Nuestros precios dependen de tus lentes. El examen es GRATIS por la compra de tus gafas. ¿Te agendo una cita?`
-            } else {
-                responseText = `Gracias por tu mensaje. Un asesor te atenderá pronto. Si quieres ver las opciones de nuevo, escribe "Hola".`
+                await sendMainMenu()
+            } else if (/ubicacion|donde estan|direccion/.test(body)) {
+                // Re-use logic key
+                await sendInteractiveMessage(`📍 *Sedes:*\n\n1️⃣ *Principal:* Cra. 19C # 26-51, Barrio Rafael Uribe Uribe\n2️⃣ *Centro:* Cl. 18 # 8-62, Bogotá`, {
+                    type: 'button',
+                    action: {
+                        buttons: [
+                            { type: 'reply', reply: { id: 'action_advisor_location', title: 'Ubicación Exacta' } }
+                        ]
+                    }
+                })
+            } else if (lastAssistantMessage.includes('Para tu examen visual')) {
+                // Fallback for typed numbers in Exam Flow
+                if (body === '1') {
+                    // Logic for "Ya tengo examen"
+                    const link = `https://wa.me/573186812518?text=${encodeURIComponent('Hola, ya tengo mi examen y quiero cotizar lentes.')}`
+                    await sendWhatsApp(`Perfecto. Un asesor te ayudará:\n${link}`)
+                    handled = true
+                } else if (body === '2') {
+                    // Logic for "Quiero examen"
+                    const link = `https://wa.me/573186812518?text=${encodeURIComponent('Hola, quiero agendar un examen visual.')}`
+                    await sendWhatsApp(`Perfecto. Un asesor te ayudará:\n${link}`)
+                    handled = true
+                }
+            }
+
+            if (!handled) {
+                // Default fallback to Main Menu for unknown inputs
+                await sendMainMenu()
             }
         }
-
-        if (responseText) await sendWhatsApp(responseText + advisorLink)
 
         return new Response(JSON.stringify({ status: 'ok' }), { headers: corsHeaders })
     } catch (error) {
