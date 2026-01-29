@@ -48,7 +48,7 @@ export default function ChatPage() {
     const showChatOnMobile = !!activeLeadId
 
     return (
-        <div className="h-[calc(100dvh-3.5rem)] md:h-[calc(100vh-4rem)] flex border rounded-lg overflow-hidden bg-card shadow-sm">
+        <div className="h-[calc(100vh-3.5rem)] md:h-[calc(100vh-4rem)] flex border rounded-lg overflow-hidden bg-card shadow-sm">
 
             {/* Sidebar: Conversation List - Hidden on mobile when chat is active */}
             <div className={cn(
@@ -135,13 +135,13 @@ export default function ChatPage() {
 
             {/* Main Chat Area - Full screen on mobile when active */}
             <div className={cn(
-                "flex-1 flex flex-col bg-background",
+                "flex-1 flex flex-col bg-background relative",
                 !showChatOnMobile && "hidden md:flex"
             )}>
                 {activeLead ? (
                     <>
                         {/* Chat Header */}
-                        <div className="h-14 md:h-16 border-b flex items-center justify-between px-3 md:px-6 bg-card">
+                        <div className="h-14 md:h-16 border-b flex items-center justify-between px-3 md:px-6 bg-card flex-shrink-0">
                             <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
                                 {/* Back button - Mobile only */}
                                 <Button
@@ -173,8 +173,8 @@ export default function ChatPage() {
                             </Button>
                         </div>
 
-                        {/* Messages List */}
-                        <div className="flex-1 p-3 md:p-6 overflow-y-auto scroll-smooth-ios space-y-3 md:space-y-4 bg-muted/5">
+                        {/* Messages List - Takes remaining space with padding for input */}
+                        <div className="flex-1 p-3 md:p-6 pb-20 md:pb-24 overflow-y-auto scroll-smooth-ios space-y-3 md:space-y-4 bg-muted/5">
                             {loadingMessages ? (
                                 <div className="flex justify-center pt-10"><Loader2 className="animate-spin text-muted-foreground" /></div>
                             ) : messages.length === 0 ? (
@@ -210,8 +210,8 @@ export default function ChatPage() {
                             <div ref={messagesEndRef} />
                         </div>
 
-                        {/* Input Area - Fixed to viewport bottom */}
-                        <div className="p-3 md:p-4 border-t bg-card">
+                        {/* Input Area - Absolutely positioned at bottom */}
+                        <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4 border-t bg-card">
                             <form onSubmit={handleSend} className="flex gap-2">
                                 <Input
                                     value={input}
