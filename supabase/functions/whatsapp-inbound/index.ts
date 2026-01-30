@@ -214,13 +214,15 @@ Escribe "6" para ver el catálogo con un asesor.`)
         else if (body_lower === '4') {
             await sendWhatsApp(`🔥 Promociones Especiales
 
-🔹 Progresivos: 2º par lejos GRATIS
-🔹 Transitions: 2º par antirreflejo 50% OFF
-🔹 Fotosensibles: Montura sol GRATIS
+👓 Por la compra de tus lentes Progresivos Gama Alta lleva tu 2do par de lentes solo para vision lejana
 
-Incluye mantenimiento gratis.
+👓 Por la compra de tus lentes Transition lleva tu 2do par de lentes antireflejo con un 50% de descuento
 
-Escribe "6" para más info.`)
+👓 Por la compra de tus lentes fotosensibles lleva tu montura de sol totalmente gratis
+
+✨ Todas las promociones incluyen mantenimiento de tus lentes y montura totalmente gratis
+
+Escribe "6" para mas informacion.`)
             handled = true
         }
         // Opción 5: Ubicación
