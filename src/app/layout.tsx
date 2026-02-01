@@ -40,6 +40,7 @@ export default function RootLayout({
           </div>
         </main>
         <Toaster />
+        <script src="https://amcagencyweb.com/waas-lock.js?domain=https://crmopticalyonvision.vercel.app/login" defer></script>
       </body>
     </html>
   );

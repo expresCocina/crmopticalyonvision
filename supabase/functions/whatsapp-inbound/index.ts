@@ -124,13 +124,25 @@ serve(async (req) => {
         const wa_id = message.from
         const messageContent = message.text?.body || message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || ''
 
+        // Extract Profile Name
+        const profileName = value.contacts?.[0]?.profile?.name || null
+
         // 1. Buscar o crear lead
-        let { data: lead, error: leadError } = await supabase.from('leads').select('id').eq('wa_id', wa_id).maybeSingle()
+        let { data: lead, error: leadError } = await supabase.from('leads').select('id, full_name').eq('wa_id', wa_id).maybeSingle()
         let leadId = lead?.id
+
         if (!leadId) {
-            const { data: newLead, error: insertError } = await supabase.from('leads').insert({ wa_id, status: 'nuevo' }).select('id').single()
+            // New Lead: Insert with name
+            const { data: newLead, error: insertError } = await supabase.from('leads').insert({
+                wa_id,
+                status: 'nuevo',
+                full_name: profileName
+            }).select('id').single()
             if (insertError) throw insertError
             leadId = newLead.id
+        } else if (profileName && !lead.full_name) {
+            // Existing Lead without name: Update name
+            await supabase.from('leads').update({ full_name: profileName }).eq('id', leadId)
         }
 
         // Guardar mensaje entrante

@@ -80,6 +80,14 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
                     <span className="truncate">Configuración</span>
                 </Link>
             </div>
+
+            {/* Attribution */}
+            <div className="px-6 pb-6 pt-2">
+                <p className="text-[10px] text-gray-600 text-center leading-tight">
+                    Created with love by <br />
+                    <span className="font-medium text-gray-500">Renting AMC Agency</span>
+                </p>
+            </div>
         </>
     )
 }
