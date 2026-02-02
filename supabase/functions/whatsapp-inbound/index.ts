@@ -139,20 +139,28 @@ Por favor escríbenos tu consulta 🙌`,
 📸 Instagram: @Lyon_vision`
 }
 
-// ========== SISTEMA DE CONTEXTO ==========
+// ========== SISTEMA DE CONTEXTO (PERSISTIDO EN BD) ==========
 interface BotContext {
     menu: string // 'main', 'examen', 'lentes', 'monturas', 'promociones'
     lastMessage: string
 }
 
-const contextStore = new Map<string, BotContext>()
+// Funciones para manejar contexto en la base de datos
+async function getContext(supabase: any, leadId: string): Promise<BotContext> {
+    const { data } = await supabase
+        .from('leads')
+        .select('bot_context')
+        .eq('id', leadId)
+        .single()
 
-function getContext(wa_id: string): BotContext {
-    return contextStore.get(wa_id) || { menu: 'main', lastMessage: '' }
+    return data?.bot_context || { menu: 'main', lastMessage: '' }
 }
 
-function setContext(wa_id: string, context: BotContext) {
-    contextStore.set(wa_id, context)
+async function setContext(supabase: any, leadId: string, context: BotContext) {
+    await supabase
+        .from('leads')
+        .update({ bot_context: context })
+        .eq('id', leadId)
 }
 
 serve(async (req) => {
@@ -245,12 +253,12 @@ serve(async (req) => {
 
         // LÓGICA DE RESPUESTA BASADA EN NÚMEROS Y CONTEXTO
         const input = messageContent.trim()
-        const context = getContext(wa_id)
+        const context = await getContext(supabase, leadId)
 
         // Saludos - Mostrar menú principal
         if (['hola', 'buenos dias', 'buenas tardes', 'buenas noches', 'menu', 'menú', 'opciones', 'hi', 'hello'].some(g => input.toLowerCase().includes(g))) {
             await sendWhatsApp(MESSAGES.MAIN_MENU)
-            setContext(wa_id, { menu: 'main', lastMessage: 'main_menu' })
+            await setContext(supabase, leadId, { menu: 'main', lastMessage: 'main_menu' })
             return new Response('OK', { status: 200 })
         }
 
@@ -260,7 +268,7 @@ serve(async (req) => {
             if (input === '1') {
                 await addTag('examen_visual')
                 await sendWhatsApp(MESSAGES.EXAMEN_VISUAL)
-                setContext(wa_id, { menu: 'examen', lastMessage: 'examen_menu' })
+                await setContext(supabase, leadId, { menu: 'examen', lastMessage: 'examen_menu' })
                 return new Response('OK', { status: 200 })
             }
 
@@ -268,7 +276,7 @@ serve(async (req) => {
             if (input === '2') {
                 await addTag('lentes_formulados')
                 await sendWhatsApp(MESSAGES.LENTES_FORMULADOS)
-                setContext(wa_id, { menu: 'lentes', lastMessage: 'lentes_menu' })
+                await setContext(supabase, leadId, { menu: 'lentes', lastMessage: 'lentes_menu' })
                 return new Response('OK', { status: 200 })
             }
 
@@ -276,7 +284,7 @@ serve(async (req) => {
             if (input === '3') {
                 await addTag('monturas')
                 await sendWhatsApp(MESSAGES.MONTURAS)
-                setContext(wa_id, { menu: 'monturas', lastMessage: 'monturas_menu' })
+                await setContext(supabase, leadId, { menu: 'monturas', lastMessage: 'monturas_menu' })
                 return new Response('OK', { status: 200 })
             }
 
@@ -284,14 +292,14 @@ serve(async (req) => {
             if (input === '4') {
                 await addTag('promociones')
                 await sendWhatsApp(MESSAGES.PROMOCIONES)
-                setContext(wa_id, { menu: 'promociones', lastMessage: 'promociones_menu' })
+                await setContext(supabase, leadId, { menu: 'promociones', lastMessage: 'promociones_menu' })
                 return new Response('OK', { status: 200 })
             }
 
             // OPCIÓN 5: UBICACIÓN
             if (input === '5') {
                 await sendWhatsApp(MESSAGES.UBICACION)
-                setContext(wa_id, { menu: 'ubicacion', lastMessage: 'ubicacion' })
+                await setContext(supabase, leadId, { menu: 'ubicacion', lastMessage: 'ubicacion' })
                 return new Response('OK', { status: 200 })
             }
 
@@ -300,7 +308,7 @@ serve(async (req) => {
                 await addTag('asesor_solicitado')
                 await supabase.from('leads').update({ bot_active: false }).eq('id', leadId)
                 await sendWhatsApp(MESSAGES.HANDOFF)
-                setContext(wa_id, { menu: 'handoff', lastMessage: 'handoff' })
+                await setContext(supabase, leadId, { menu: 'handoff', lastMessage: 'handoff' })
                 return new Response('OK', { status: 200 })
             }
         }
@@ -310,14 +318,14 @@ serve(async (req) => {
             if (input === '1') {
                 await addTag('sede_olaya')
                 await sendWhatsApp(MESSAGES.SEDE_OLAYA)
-                setContext(wa_id, { menu: 'examen_olaya', lastMessage: 'sede_olaya' })
+                await setContext(supabase, leadId, { menu: 'examen_olaya', lastMessage: 'sede_olaya' })
                 return new Response('OK', { status: 200 })
             }
 
             if (input === '2') {
                 await addTag('sede_centro')
                 await sendWhatsApp(MESSAGES.SEDE_CENTRO)
-                setContext(wa_id, { menu: 'examen_centro', lastMessage: 'sede_centro' })
+                await setContext(supabase, leadId, { menu: 'examen_centro', lastMessage: 'sede_centro' })
                 return new Response('OK', { status: 200 })
             }
 
@@ -357,28 +365,28 @@ serve(async (req) => {
             if (input === '1') {
                 await addTag('vision_sencilla')
                 await sendWhatsApp(MESSAGES.VISION_SENCILLA)
-                setContext(wa_id, { menu: 'main', lastMessage: 'vision_sencilla' })
+                await setContext(supabase, leadId, { menu: 'main', lastMessage: 'vision_sencilla' })
                 return new Response('OK', { status: 200 })
             }
 
             if (input === '2') {
                 await addTag('fotosensible')
                 await sendWhatsApp(MESSAGES.FOTOSENSIBLES)
-                setContext(wa_id, { menu: 'main', lastMessage: 'fotosensibles' })
+                await setContext(supabase, leadId, { menu: 'main', lastMessage: 'fotosensibles' })
                 return new Response('OK', { status: 200 })
             }
 
             if (input === '3') {
                 await addTag('progresivos')
                 await sendWhatsApp(MESSAGES.PROGRESIVOS)
-                setContext(wa_id, { menu: 'main', lastMessage: 'progresivos' })
+                await setContext(supabase, leadId, { menu: 'main', lastMessage: 'progresivos' })
                 return new Response('OK', { status: 200 })
             }
 
             if (input === '4') {
                 await addTag('formula_enviada')
                 await sendWhatsApp(MESSAGES.ENVIAR_FORMULA)
-                setContext(wa_id, { menu: 'main', lastMessage: 'enviar_formula' })
+                await setContext(supabase, leadId, { menu: 'main', lastMessage: 'enviar_formula' })
                 return new Response('OK', { status: 200 })
             }
 
@@ -394,7 +402,7 @@ serve(async (req) => {
         if (context.menu === 'monturas') {
             if (input === '1') {
                 await sendWhatsApp('📲 Aquí está nuestro catálogo de monturas: https://wa.me/c/573186812518')
-                setContext(wa_id, { menu: 'main', lastMessage: 'catalogo' })
+                await setContext(supabase, leadId, { menu: 'main', lastMessage: 'catalogo' })
                 return new Response('OK', { status: 200 })
             }
 
@@ -411,21 +419,21 @@ serve(async (req) => {
             if (input === '1') {
                 await addTag('promocion_1')
                 await sendWhatsApp(MESSAGES.PROMO_1)
-                setContext(wa_id, { menu: 'main', lastMessage: 'promo_1' })
+                await setContext(supabase, leadId, { menu: 'main', lastMessage: 'promo_1' })
                 return new Response('OK', { status: 200 })
             }
 
             if (input === '2') {
                 await addTag('promocion_2')
                 await sendWhatsApp(MESSAGES.PROMO_2)
-                setContext(wa_id, { menu: 'main', lastMessage: 'promo_2' })
+                await setContext(supabase, leadId, { menu: 'main', lastMessage: 'promo_2' })
                 return new Response('OK', { status: 200 })
             }
 
             if (input === '3') {
                 await addTag('promocion_3')
                 await sendWhatsApp(MESSAGES.PROMO_3)
-                setContext(wa_id, { menu: 'main', lastMessage: 'promo_3' })
+                await setContext(supabase, leadId, { menu: 'main', lastMessage: 'promo_3' })
                 return new Response('OK', { status: 200 })
             }
 
