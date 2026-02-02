@@ -216,6 +216,12 @@ export default function ChatPage() {
                                 messages.map((msg) => {
                                     const isOutbound = msg.direction === 'outbound'
                                     const hasImage = msg.media_url && msg.type === 'image'
+
+                                    // Use proxy for WhatsApp images
+                                    const imageUrl = hasImage && msg.media_url
+                                        ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`
+                                        : null
+
                                     return (
                                         <div key={msg.id} className={cn("flex", isOutbound ? "justify-end" : "justify-start")}>
                                             <div className={cn(
@@ -224,10 +230,10 @@ export default function ChatPage() {
                                                     ? "bg-primary text-primary-foreground rounded-tr-sm"
                                                     : "bg-white border rounded-tl-sm"
                                             )}>
-                                                {hasImage && (
+                                                {imageUrl && (
                                                     <div className="mb-2">
                                                         <img
-                                                            src={msg.media_url!}
+                                                            src={imageUrl}
                                                             alt={msg.caption || 'Imagen'}
                                                             className="rounded-lg max-w-full h-auto"
                                                             loading="lazy"
