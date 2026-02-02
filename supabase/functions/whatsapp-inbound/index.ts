@@ -184,6 +184,27 @@ serve(async (req) => {
         const messageType = message.type
         const messageContent = message.text?.body || message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || ''
 
+        // Extract media information (image, video, audio, document)
+        let mediaUrl = null
+        let caption = null
+
+        if (messageType === 'image') {
+            const imageId = message.image?.id
+            caption = message.image?.caption || null
+            if (imageId) {
+                // Download image from WhatsApp
+                try {
+                    const mediaResponse = await fetch(`https://graph.facebook.com/v24.0/${imageId}`, {
+                        headers: { 'Authorization': `Bearer ${Deno.env.get('WHATSAPP_API_TOKEN')}` }
+                    })
+                    const mediaData = await mediaResponse.json()
+                    mediaUrl = mediaData.url
+                } catch (err) {
+                    console.error('Error downloading image:', err)
+                }
+            }
+        }
+
         // Extract Profile Name
         const profileName = value.contacts?.[0]?.profile?.name || null
 
@@ -208,14 +229,16 @@ serve(async (req) => {
             await supabase.from('leads').update({ full_name: profileName }).eq('id', leadId)
         }
 
-        // Guardar mensaje entrante
+        // Guardar mensaje entrante (con media_url si es imagen)
         await supabase.from('messages').insert({
             lead_id: leadId,
             wa_message_id: message.id,
-            content: messageContent,
+            content: messageContent || caption || '[Imagen]',
             type: messageType,
             direction: 'inbound',
-            status: 'delivered'
+            status: 'delivered',
+            media_url: mediaUrl,
+            caption: caption
         })
 
         // INCREMENTAR CONTADOR DE NO LEÍDOS

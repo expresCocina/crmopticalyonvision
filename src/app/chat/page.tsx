@@ -215,6 +215,7 @@ export default function ChatPage() {
                             ) : (
                                 messages.map((msg) => {
                                     const isOutbound = msg.direction === 'outbound'
+                                    const hasImage = msg.media_url && msg.type === 'image'
                                     return (
                                         <div key={msg.id} className={cn("flex", isOutbound ? "justify-end" : "justify-start")}>
                                             <div className={cn(
@@ -223,7 +224,19 @@ export default function ChatPage() {
                                                     ? "bg-primary text-primary-foreground rounded-tr-sm"
                                                     : "bg-white border rounded-tl-sm"
                                             )}>
-                                                <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                                                {hasImage && (
+                                                    <div className="mb-2">
+                                                        <img
+                                                            src={msg.media_url!}
+                                                            alt={msg.caption || 'Imagen'}
+                                                            className="rounded-lg max-w-full h-auto"
+                                                            loading="lazy"
+                                                        />
+                                                    </div>
+                                                )}
+                                                {(msg.content || msg.caption) && (
+                                                    <p className="whitespace-pre-wrap break-words">{msg.content || msg.caption}</p>
+                                                )}
                                                 <span className={cn(
                                                     "text-[10px] block text-right mt-1",
                                                     isOutbound ? "text-primary-foreground/70" : "text-muted-foreground"

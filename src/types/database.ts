@@ -40,6 +40,8 @@ export interface Message {
     type: string;
     direction: MsgDirection;
     status: MessageStatus;
+    media_url: string | null;
+    caption: string | null;
     created_at: string;
 }
 
