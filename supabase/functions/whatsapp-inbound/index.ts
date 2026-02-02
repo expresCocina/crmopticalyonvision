@@ -329,6 +329,29 @@ serve(async (req) => {
             }
         }
 
+        // ========== DESPUÉS DE SELECCIONAR SEDE: CAPTURAR FECHA ==========
+        if (context.menu === 'examen_olaya' || context.menu === 'examen_centro') {
+            // El usuario respondió con una fecha/día
+            // Guardar en notes y transferir a asesor para confirmar cita
+            const sede = context.menu === 'examen_olaya' ? 'Olaya' : 'Centro'
+            const fechaSolicitada = input
+
+            // Actualizar notes con la información
+            const { data: currentLead } = await supabase.from('leads').select('notes').eq('id', leadId).single()
+            const currentNotes = currentLead?.notes || ''
+            const newNotes = `${currentNotes}\n\nExamen Visual - Sede ${sede}\nFecha solicitada: ${fechaSolicitada}`.trim()
+
+            await supabase.from('leads').update({ notes: newNotes }).eq('id', leadId)
+            await addTag('cita_solicitada')
+            await addTag(`sede_${sede.toLowerCase()}`)
+
+            // Transferir a asesor para confirmar
+            await supabase.from('leads').update({ bot_active: false }).eq('id', leadId)
+            await sendWhatsApp(`Perfecto! Un asesor te contactará pronto para confirmar tu cita de examen visual en la sede ${sede} para el ${fechaSolicitada}. 📅👁️`)
+
+            return new Response('OK', { status: 200 })
+        }
+
         // ========== SUBMENÚ: LENTES FORMULADOS ==========
         if (context.menu === 'lentes') {
             if (input === '1') {
