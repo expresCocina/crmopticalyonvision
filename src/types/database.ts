@@ -25,10 +25,11 @@ export interface Lead {
     assigned_to: string | null;
     tags: string[] | null;
     notes: string | null;
+    bot_active: boolean;
+    unread_count: number;
     last_interaction: string;
     created_at: string;
     updated_at: string;
-    unread_count: number;
 }
 
 export interface Message {

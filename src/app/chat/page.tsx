@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useChat } from '@/hooks/useChat'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Loader2, Send, Search, Phone, MoreVertical, MessageSquare, ArrowLeft } from 'lucide-react'
+import { Loader2, Send, Search, Phone, MoreVertical, MessageSquare, ArrowLeft, Bot, User } from 'lucide-react'
 import { LeadAvatar } from '@/components/chat/LeadAvatar'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -18,7 +18,8 @@ export default function ChatPage() {
         messages,
         loadingLeads,
         loadingMessages,
-        sendMessage
+        sendMessage,
+        toggleBot
     } = useChat()
 
     const [input, setInput] = useState('')
@@ -160,7 +161,22 @@ export default function ChatPage() {
                                     size="md"
                                 />
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-sm md:text-base truncate">{activeLead.full_name || 'Usuario WhatsApp'}</h3>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-bold text-sm md:text-base truncate">{activeLead.full_name || 'Usuario WhatsApp'}</h3>
+                                        {/* Bot Status Badge */}
+                                        <span className={cn(
+                                            "px-2 py-0.5 rounded-full text-[10px] font-medium flex items-center gap-1 flex-shrink-0",
+                                            activeLead.bot_active
+                                                ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                                                : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                                        )}>
+                                            {activeLead.bot_active ? (
+                                                <><Bot className="h-3 w-3" /> Bot</>
+                                            ) : (
+                                                <><User className="h-3 w-3" /> Humano</>
+                                            )}
+                                        </span>
+                                    </div>
                                     <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
                                         <Phone className="h-3 w-3 flex-shrink-0" />
                                         <span className="truncate">{activeLead.wa_id}</span>
@@ -168,9 +184,24 @@ export default function ChatPage() {
                                     </p>
                                 </div>
                             </div>
-                            <Button variant="ghost" size="icon" className="flex-shrink-0">
-                                <MoreVertical className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                {/* Bot Toggle Button */}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => toggleBot(activeLead.id)}
+                                    className="hidden md:flex items-center gap-1.5 h-8"
+                                >
+                                    {activeLead.bot_active ? (
+                                        <><User className="h-3.5 w-3.5" /> Desactivar Bot</>
+                                    ) : (
+                                        <><Bot className="h-3.5 w-3.5" /> Activar Bot</>
+                                    )}
+                                </Button>
+                                <Button variant="ghost" size="icon" className="flex-shrink-0">
+                                    <MoreVertical className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
 
                         {/* Messages List */}

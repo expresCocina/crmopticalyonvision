@@ -139,10 +139,13 @@ serve(async (req) => {
             // Don't fail the request since message was sent successfully
         }
 
-        // Update lead last_interaction
+        // Update lead last_interaction and deactivate bot (agent is taking over)
         await supabase
             .from('leads')
-            .update({ last_interaction: new Date().toISOString() })
+            .update({
+                last_interaction: new Date().toISOString(),
+                bot_active: false  // Desactivar bot cuando agente envía mensaje
+            })
             .eq('id', leadData.id)
 
         console.log('Message sent successfully:', wa_message_id)

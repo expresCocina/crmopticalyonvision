@@ -214,6 +214,34 @@ export function useChat() {
         }
     }
 
+    // 5. Toggle Bot Active/Inactive
+    const toggleBot = async (leadId: string) => {
+        const lead = leads.find(l => l.id === leadId)
+        if (!lead) return
+
+        const newBotActive = !lead.bot_active
+
+        try {
+            const { error } = await supabase
+                .from('leads')
+                .update({ bot_active: newBotActive })
+                .eq('id', leadId)
+
+            if (error) {
+                toast.error('Error al cambiar estado del bot')
+                console.error('Error toggling bot:', error)
+                return
+            }
+
+            // Optimistic update
+            setLeads(prev => prev.map(l => l.id === leadId ? { ...l, bot_active: newBotActive } : l))
+            toast.success(newBotActive ? 'Bot activado' : 'Bot desactivado')
+        } catch (err) {
+            console.error('Exception toggling bot:', err)
+            toast.error('Error inesperado')
+        }
+    }
+
     return {
         leads,
         activeLeadId,
@@ -221,6 +249,7 @@ export function useChat() {
         messages,
         loadingLeads,
         loadingMessages,
-        sendMessage
+        sendMessage,
+        toggleBot
     }
 }

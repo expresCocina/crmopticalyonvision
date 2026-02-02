@@ -1,107 +1,158 @@
 ﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// ========== APPOINTMENT PARSER (INLINE) ==========
-interface AppointmentIntent {
-    hasIntent: boolean
-    date?: Date
-    time?: string
-    rawDate?: string
-    rawTime?: string
-    appointmentType?: string
+// ========== MENSAJES DEL CHATBOT ==========
+const MESSAGES = {
+    MAIN_MENU: `Hola 👋 Bienvenido a Óptica Lyon Visión
+
+¿En qué podemos ayudarte hoy?
+
+Responde con el número de la opción 👇
+
+1️⃣ Examen visual
+2️⃣ Lentes formulados
+3️⃣ Monturas
+4️⃣ Promociones
+5️⃣ Ubicación
+6️⃣ Hablar con un asesor`,
+
+    EXAMEN_VISUAL: `👁️ Examen visual
+Agenda tu cita en la sede de tu preferencia:
+
+1️⃣ Sede Olaya
+2️⃣ Sede Centro
+3️⃣ Hablar con un asesor`,
+
+    SEDE_OLAYA: `📍 Sede Olaya
+Carrera 19C #26A-51 Sur
+Barrio Olaya
+
+¿Qué día te gustaría agendar tu examen visual?`,
+
+    SEDE_CENTRO: `📍 Sede Centro
+Calle 18 #8-62
+Centro Comercial Tower Visión – Local 219
+
+¿Qué día te gustaría agendar tu examen visual?`,
+
+    LENTES_FORMULADOS: `👓 Lentes formulados
+Selecciona el tipo de lente:
+
+1️⃣ Visión sencilla
+2️⃣ Fotosensibles
+3️⃣ Progresivos
+4️⃣ Enviar fórmula
+5️⃣ Hablar con un asesor`,
+
+    VISION_SENCILLA: `👓 Lentes visión sencilla
+
+💰 Precios desde:
+• Lentes blancos desde $100.000
+• Lentes 1.56 con antirreflejo blue desde $140.000
+• Lentes en policarbonato con antirreflejo blue desde $190.000
+• Lentes evolución con antirreflejo desde $320.000
+
+🛠️ Incluye mantenimiento de lentes y montura totalmente GRATIS.
+
+📸 Si tienes tu fórmula, envíala por aquí y con gusto te cotizamos.`,
+
+    FOTOSENSIBLES: `😎 Lentes fotosensibles
+
+💰 Precios desde:
+• Fotosensible 1.56 con antirreflejo desde $220.000
+• Fotosensible en policarbonato con antirreflejo desde $290.000
+
+🛠️ Incluye mantenimiento de lentes y montura totalmente GRATIS.
+
+📸 Envíanos tu fórmula para cotizarte exactamente lo que necesitas.`,
+
+    PROGRESIVOS: `👓 Lentes progresivos
+
+💰 Precios desde:
+• Progresivos gama media desde $300.000
+• Progresivos fotosensibles desde $500.000
+
+🛠️ Incluye mantenimiento de lentes y montura totalmente GRATIS.
+
+📸 Si tienes fórmula, envíala y te asesoramos.`,
+
+    ENVIAR_FORMULA: `📄 Envío de fórmula
+Por favor envía una foto clara de tu fórmula médica y un asesor te cotizará tus lentes.`,
+
+    MONTURAS: `🕶️ Monturas
+
+💰 Precios desde $60.000
+
+🛠️ Incluye mantenimiento totalmente GRATIS.
+
+1️⃣ Ver catálogo
+2️⃣ Hablar con un asesor
+
+📲 Catálogo:
+👉 https://wa.me/c/573186812518`,
+
+    PROMOCIONES: `🎉 Promociones vigentes
+Selecciona la promoción de tu interés 👇
+
+1️⃣ Progresivos Gama Alta
+2️⃣ Lentes Transition
+3️⃣ Lentes Fotosensibles
+4️⃣ Hablar con un asesor`,
+
+    PROMO_1: `🎯 Promoción #1
+
+Por la compra de tus lentes progresivos gama alta,
+llévate tu segundo par de lentes para visión lejana totalmente GRATIS.
+
+🛠️ Incluye mantenimiento GRATIS de lentes y montura.`,
+
+    PROMO_2: `🎯 Promoción #2
+
+Por la compra de tus lentes Transition,
+lleva tu segundo par de lentes antirreflejo con 50% de descuento.
+
+🛠️ Incluye mantenimiento GRATIS de lentes y montura.`,
+
+    PROMO_3: `🎯 Promoción #3
+
+Por la compra de tus lentes fotosensibles,
+llévate tu montura de sol totalmente GRATIS.
+
+🛠️ Incluye mantenimiento GRATIS de lentes y montura.`,
+
+    UBICACION: `📍 Nuestras sedes
+
+🏢 Sede Olaya
+Cra 19C #26A-51 Sur – Barrio Olaya
+
+🏢 Sede Centro
+Calle 18 #8-62 – Centro Comercial Tower Visión – Local 219
+
+1️⃣ Hablar con un asesor`,
+
+    HANDOFF: `👩‍⚕️👨‍⚕️ Un asesor de Óptica Lyon Visión te atenderá en un momento.
+Por favor escríbenos tu consulta 🙌`,
+
+    INSTITUCIONAL: `¿Quieres conocer más de Óptica Lyon Visión?
+
+📱 TikTok: @lyonvision
+📸 Instagram: @Lyon_vision`
 }
 
-function detectAppointmentIntent(message: string): AppointmentIntent {
-    const lowerMessage = message.toLowerCase().trim()
-    const appointmentKeywords = [
-        'agendar', 'agenda', 'cita', 'reservar', 'reserva', 'examen', 'consulta',
-        'revisión', 'revision', 'quiero una cita', 'necesito una cita',
-        'cuando puedo ir', 'horario disponible', 'turno', 'espacio', 'chequeo'
-    ]
-    const hasIntent = appointmentKeywords.some(keyword => lowerMessage.includes(keyword))
-    const dateInfo = extractDate(lowerMessage)
-    const timeInfo = extractTime(lowerMessage)
-    const appointmentType = extractAppointmentType(lowerMessage)
-
-    return {
-        hasIntent,
-        date: dateInfo.date,
-        rawDate: dateInfo.raw,
-        time: timeInfo.time,
-        rawTime: timeInfo.raw,
-        appointmentType
-    }
+// ========== SISTEMA DE CONTEXTO ==========
+interface BotContext {
+    menu: string // 'main', 'examen', 'lentes', 'monturas', 'promociones'
+    lastMessage: string
 }
 
-function extractDate(message: string): { date?: Date; raw?: string } {
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const words = message.split(/\s+/)
+const contextStore = new Map<string, BotContext>()
 
-    if (words.includes('hoy')) return { date: new Date(today), raw: 'hoy' }
-    if (message.includes('mañana') || message.includes('manana')) {
-        const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
-        return { date: tomorrow, raw: 'mañana' }
-    }
-    if (message.includes('pasado mañana') || message.includes('pasado manana')) {
-        const dayAfterTomorrow = new Date(today); dayAfterTomorrow.setDate(today.getDate() + 2)
-        return { date: dayAfterTomorrow, raw: 'pasado mañana' }
-    }
-
-    const dayNames = ['lunes', 'martes', 'miercoles', 'miércoles', 'jueves', 'viernes', 'sabado', 'sábado', 'domingo']
-    for (const day of dayNames) {
-        if (message.includes(day)) {
-            const targetDay = ['lunes', 'martes', 'miercoles', 'miércoles', 'jueves', 'viernes', 'sabado', 'sábado', 'domingo'].indexOf(day) % 7
-            const currentDay = now.getDay()
-            let daysUntil = (targetDay - currentDay + 7) % 7
-            if (daysUntil === 0) daysUntil = 7
-            const targetDate = new Date(today); targetDate.setDate(today.getDate() + daysUntil)
-            return { date: targetDate, raw: day }
-        }
-    }
-
-    const dateRegex = /(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?/
-    const match = message.match(dateRegex)
-    if (match) {
-        const day = parseInt(match[1])
-        const month = parseInt(match[2]) - 1
-        const year = match[3] ? (match[3].length === 2 ? 2000 + parseInt(match[3]) : parseInt(match[3])) : now.getFullYear()
-        return { date: new Date(year, month, day), raw: match[0] }
-    }
-
-    return {}
+function getContext(wa_id: string): BotContext {
+    return contextStore.get(wa_id) || { menu: 'main', lastMessage: '' }
 }
 
-function extractTime(message: string): { time?: string; raw?: string } {
-    const timeRegex = /(\d{1,2}):(\d{2})\s*(am|pm)?/i
-    const match = message.match(timeRegex)
-    if (match) {
-        let hours = parseInt(match[1])
-        const minutes = match[2]
-        const period = match[3]?.toLowerCase()
-        if (period === 'pm' && hours < 12) hours += 12
-        if (period === 'am' && hours === 12) hours = 0
-        return { time: `${hours.toString().padStart(2, '0')}:${minutes}`, raw: match[0] }
-    }
-
-    const simpleTimeRegex = /(\d{1,2})\s*(am|pm)/i
-    const simpleMatch = message.match(simpleTimeRegex)
-    if (simpleMatch) {
-        let hours = parseInt(simpleMatch[1])
-        const period = simpleMatch[2].toLowerCase()
-        if (period === 'pm' && hours < 12) hours += 12
-        if (period === 'am' && hours === 12) hours = 0
-        return { time: `${hours.toString().padStart(2, '0')}:00`, raw: simpleMatch[0] }
-    }
-
-    return {}
-}
-
-function extractAppointmentType(message: string): string | undefined {
-    if (message.includes('examen') || message.includes('revision')) return 'Examen Visual'
-    if (message.includes('lentes') || message.includes('formula')) return 'Cotización Lentes'
-    if (message.includes('montura')) return 'Monturas'
-    return undefined
+function setContext(wa_id: string, context: BotContext) {
+    contextStore.set(wa_id, context)
 }
 
 serve(async (req) => {
@@ -122,24 +173,28 @@ serve(async (req) => {
 
         const message = value.messages[0]
         const wa_id = message.from
+        const messageType = message.type
         const messageContent = message.text?.body || message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || ''
 
         // Extract Profile Name
         const profileName = value.contacts?.[0]?.profile?.name || null
 
         // 1. Buscar o crear lead
-        let { data: lead, error: leadError } = await supabase.from('leads').select('id, full_name').eq('wa_id', wa_id).maybeSingle()
+        let { data: lead, error: leadError } = await supabase.from('leads').select('id, full_name, bot_active').eq('wa_id', wa_id).maybeSingle()
         let leadId = lead?.id
+        let botActive = lead?.bot_active ?? true
 
         if (!leadId) {
             // New Lead: Insert with name
             const { data: newLead, error: insertError } = await supabase.from('leads').insert({
                 wa_id,
                 status: 'nuevo',
-                full_name: profileName
-            }).select('id').single()
+                full_name: profileName,
+                bot_active: true
+            }).select('id, bot_active').single()
             if (insertError) throw insertError
             leadId = newLead.id
+            botActive = newLead.bot_active
         } else if (profileName && !lead.full_name) {
             // Existing Lead without name: Update name
             await supabase.from('leads').update({ full_name: profileName }).eq('id', leadId)
@@ -147,11 +202,22 @@ serve(async (req) => {
 
         // Guardar mensaje entrante
         await supabase.from('messages').insert({
-            lead_id: leadId, wa_message_id: message.id, content: messageContent, type: message.type, direction: 'inbound', status: 'delivered'
+            lead_id: leadId,
+            wa_message_id: message.id,
+            content: messageContent,
+            type: messageType,
+            direction: 'inbound',
+            status: 'delivered'
         })
 
         // INCREMENTAR CONTADOR DE NO LEÍDOS
         await supabase.rpc('increment_unread_count', { row_id: leadId })
+
+        // SI EL BOT ESTÁ DESACTIVADO, NO RESPONDER
+        if (!botActive) {
+            console.log('Bot desactivado para este lead, no se envía respuesta automática')
+            return new Response('OK', { status: 200 })
+        }
 
         // Función envío WhatsApp + REGISTRO EN CRM
         const sendWhatsApp = async (text: string) => {
@@ -168,95 +234,198 @@ serve(async (req) => {
             }
         }
 
-        // MENÚ PRINCIPAL
-        const sendMainMenu = async () => {
-            await sendWhatsApp(`Hola 👋 Bienvenido a Óptica Lyon Visión.
-
-¿En qué podemos ayudarte?
-
-1️⃣ Examen Visual
-2️⃣ Lentes Formulados  
-3️⃣ Monturas
-4️⃣ Promociones
-5️⃣ Ubicación
-6️⃣ Hablar con Asesor
-
-Escribe el número de tu opción.`)
+        // Función para agregar tags
+        const addTag = async (tag: string) => {
+            const { data: currentLead } = await supabase.from('leads').select('tags').eq('id', leadId).single()
+            const currentTags = currentLead?.tags || []
+            if (!currentTags.includes(tag)) {
+                await supabase.from('leads').update({ tags: [...currentTags, tag] }).eq('id', leadId)
+            }
         }
 
-        // LÓGICA DE RESPUESTA
-        const body_lower = messageContent.trim().toLowerCase()
-        let handled = false
+        // LÓGICA DE RESPUESTA BASADA EN NÚMEROS Y CONTEXTO
+        const input = messageContent.trim()
+        const context = getContext(wa_id)
 
-        // Saludos
-        if (['hola', 'buenos dias', 'buenas tardes', 'buenas noches', 'menu', 'menú', 'opciones'].some(g => body_lower.includes(g))) {
-            await sendMainMenu()
-            handled = true
+        // Saludos - Mostrar menú principal
+        if (['hola', 'buenos dias', 'buenas tardes', 'buenas noches', 'menu', 'menú', 'opciones', 'hi', 'hello'].some(g => input.toLowerCase().includes(g))) {
+            await sendWhatsApp(MESSAGES.MAIN_MENU)
+            setContext(wa_id, { menu: 'main', lastMessage: 'main_menu' })
+            return new Response('OK', { status: 200 })
         }
-        // Opción 1: Examen Visual
-        else if (body_lower === '1') {
-            await sendWhatsApp(`👁️ Examen Visual
 
-Agenda tu cita escribiendo:
-- Fecha (ej: "mañana", "viernes", "15/02")
-- Hora (ej: "10am", "3:30pm")
+        // ========== MENÚ PRINCIPAL ==========
+        if (context.menu === 'main' || context.lastMessage === 'main_menu') {
+            // OPCIÓN 1: EXAMEN VISUAL
+            if (input === '1') {
+                await addTag('examen_visual')
+                await sendWhatsApp(MESSAGES.EXAMEN_VISUAL)
+                setContext(wa_id, { menu: 'examen', lastMessage: 'examen_menu' })
+                return new Response('OK', { status: 200 })
+            }
 
-O escribe "6" para hablar con un asesor.`)
-            handled = true
+            // OPCIÓN 2: LENTES FORMULADOS
+            if (input === '2') {
+                await addTag('lentes_formulados')
+                await sendWhatsApp(MESSAGES.LENTES_FORMULADOS)
+                setContext(wa_id, { menu: 'lentes', lastMessage: 'lentes_menu' })
+                return new Response('OK', { status: 200 })
+            }
+
+            // OPCIÓN 3: MONTURAS
+            if (input === '3') {
+                await addTag('monturas')
+                await sendWhatsApp(MESSAGES.MONTURAS)
+                setContext(wa_id, { menu: 'monturas', lastMessage: 'monturas_menu' })
+                return new Response('OK', { status: 200 })
+            }
+
+            // OPCIÓN 4: PROMOCIONES
+            if (input === '4') {
+                await addTag('promociones')
+                await sendWhatsApp(MESSAGES.PROMOCIONES)
+                setContext(wa_id, { menu: 'promociones', lastMessage: 'promociones_menu' })
+                return new Response('OK', { status: 200 })
+            }
+
+            // OPCIÓN 5: UBICACIÓN
+            if (input === '5') {
+                await sendWhatsApp(MESSAGES.UBICACION)
+                setContext(wa_id, { menu: 'ubicacion', lastMessage: 'ubicacion' })
+                return new Response('OK', { status: 200 })
+            }
+
+            // OPCIÓN 6: HABLAR CON ASESOR (HANDOFF)
+            if (input === '6' || input.toLowerCase().includes('asesor')) {
+                await addTag('asesor_solicitado')
+                await supabase.from('leads').update({ bot_active: false }).eq('id', leadId)
+                await sendWhatsApp(MESSAGES.HANDOFF)
+                setContext(wa_id, { menu: 'handoff', lastMessage: 'handoff' })
+                return new Response('OK', { status: 200 })
+            }
         }
-        // Opción 2: Lentes Formulados
-        else if (body_lower === '2') {
-            await sendWhatsApp(`👓 Lentes Formulados
 
-Envíanos una foto de tu receta médica para cotizar tus lentes.
+        // ========== SUBMENÚ: EXAMEN VISUAL ==========
+        if (context.menu === 'examen') {
+            if (input === '1') {
+                await addTag('sede_olaya')
+                await sendWhatsApp(MESSAGES.SEDE_OLAYA)
+                setContext(wa_id, { menu: 'examen_olaya', lastMessage: 'sede_olaya' })
+                return new Response('OK', { status: 200 })
+            }
 
-O escribe "6" para hablar con un asesor.`)
-            handled = true
+            if (input === '2') {
+                await addTag('sede_centro')
+                await sendWhatsApp(MESSAGES.SEDE_CENTRO)
+                setContext(wa_id, { menu: 'examen_centro', lastMessage: 'sede_centro' })
+                return new Response('OK', { status: 200 })
+            }
+
+            if (input === '3' || input.toLowerCase().includes('asesor')) {
+                await addTag('asesor_solicitado')
+                await supabase.from('leads').update({ bot_active: false }).eq('id', leadId)
+                await sendWhatsApp(MESSAGES.HANDOFF)
+                return new Response('OK', { status: 200 })
+            }
         }
-        // Opción 3: Monturas
-        else if (body_lower === '3') {
-            await sendWhatsApp(`🕶️ Monturas
 
-Tenemos gran variedad de estilos.
+        // ========== SUBMENÚ: LENTES FORMULADOS ==========
+        if (context.menu === 'lentes') {
+            if (input === '1') {
+                await addTag('vision_sencilla')
+                await sendWhatsApp(MESSAGES.VISION_SENCILLA)
+                setContext(wa_id, { menu: 'main', lastMessage: 'vision_sencilla' })
+                return new Response('OK', { status: 200 })
+            }
 
-Escribe "6" para ver el catálogo con un asesor.`)
-            handled = true
+            if (input === '2') {
+                await addTag('fotosensible')
+                await sendWhatsApp(MESSAGES.FOTOSENSIBLES)
+                setContext(wa_id, { menu: 'main', lastMessage: 'fotosensibles' })
+                return new Response('OK', { status: 200 })
+            }
+
+            if (input === '3') {
+                await addTag('progresivos')
+                await sendWhatsApp(MESSAGES.PROGRESIVOS)
+                setContext(wa_id, { menu: 'main', lastMessage: 'progresivos' })
+                return new Response('OK', { status: 200 })
+            }
+
+            if (input === '4') {
+                await addTag('formula_enviada')
+                await sendWhatsApp(MESSAGES.ENVIAR_FORMULA)
+                setContext(wa_id, { menu: 'main', lastMessage: 'enviar_formula' })
+                return new Response('OK', { status: 200 })
+            }
+
+            if (input === '5' || input.toLowerCase().includes('asesor')) {
+                await addTag('asesor_solicitado')
+                await supabase.from('leads').update({ bot_active: false }).eq('id', leadId)
+                await sendWhatsApp(MESSAGES.HANDOFF)
+                return new Response('OK', { status: 200 })
+            }
         }
-        // Opción 4: Promociones
-        else if (body_lower === '4') {
-            await sendWhatsApp(`🔥 Promociones Especiales
 
-👓 Por la compra de tus lentes Progresivos Gama Alta lleva tu 2do par de lentes solo para vision lejana
+        // ========== SUBMENÚ: MONTURAS ==========
+        if (context.menu === 'monturas') {
+            if (input === '1') {
+                await sendWhatsApp('📲 Aquí está nuestro catálogo de monturas: https://wa.me/c/573186812518')
+                setContext(wa_id, { menu: 'main', lastMessage: 'catalogo' })
+                return new Response('OK', { status: 200 })
+            }
 
-👓 Por la compra de tus lentes Transition lleva tu 2do par de lentes antireflejo con un 50% de descuento
-
-👓 Por la compra de tus lentes fotosensibles lleva tu montura de sol totalmente gratis
-
-✨ Todas las promociones incluyen mantenimiento de tus lentes y montura totalmente gratis
-
-Escribe "6" para mas informacion.`)
-            handled = true
+            if (input === '2' || input.toLowerCase().includes('asesor')) {
+                await addTag('asesor_solicitado')
+                await supabase.from('leads').update({ bot_active: false }).eq('id', leadId)
+                await sendWhatsApp(MESSAGES.HANDOFF)
+                return new Response('OK', { status: 200 })
+            }
         }
-        // Opción 5: Ubicación
-        else if (body_lower === '5' || body_lower.includes('ubicacion') || body_lower.includes('ubicación') || body_lower.includes('direccion') || body_lower.includes('dirección')) {
-            await sendWhatsApp(`📍 Nuestras Sedes
 
-1️⃣ Principal: Cra. 19C # 26-51
-   Barrio Rafael Uribe Uribe
+        // ========== SUBMENÚ: PROMOCIONES ==========
+        if (context.menu === 'promociones') {
+            if (input === '1') {
+                await addTag('promocion_1')
+                await sendWhatsApp(MESSAGES.PROMO_1)
+                setContext(wa_id, { menu: 'main', lastMessage: 'promo_1' })
+                return new Response('OK', { status: 200 })
+            }
 
-2️⃣ Centro: Cl. 18 # 8-62
-   Bogotá
+            if (input === '2') {
+                await addTag('promocion_2')
+                await sendWhatsApp(MESSAGES.PROMO_2)
+                setContext(wa_id, { menu: 'main', lastMessage: 'promo_2' })
+                return new Response('OK', { status: 200 })
+            }
 
-Escribe "6" para más información.`)
-            handled = true
+            if (input === '3') {
+                await addTag('promocion_3')
+                await sendWhatsApp(MESSAGES.PROMO_3)
+                setContext(wa_id, { menu: 'main', lastMessage: 'promo_3' })
+                return new Response('OK', { status: 200 })
+            }
+
+            if (input === '4' || input.toLowerCase().includes('asesor')) {
+                await addTag('asesor_solicitado')
+                await supabase.from('leads').update({ bot_active: false }).eq('id', leadId)
+                await sendWhatsApp(MESSAGES.HANDOFF)
+                return new Response('OK', { status: 200 })
+            }
         }
-        // Opción 6: Hablar con Asesor
-        else if (body_lower === '6' || body_lower.includes('asesor')) {
-            await sendWhatsApp(`💬 Un asesor te atenderá pronto.
 
-Escríbenos: wa.me/573186812518`)
-            handled = true
+        // ========== SUBMENÚ: UBICACIÓN ==========
+        if (context.menu === 'ubicacion') {
+            if (input === '1' || input.toLowerCase().includes('asesor')) {
+                await addTag('asesor_solicitado')
+                await supabase.from('leads').update({ bot_active: false }).eq('id', leadId)
+                await sendWhatsApp(MESSAGES.HANDOFF)
+                return new Response('OK', { status: 200 })
+            }
         }
+
+        // Si no es una opción válida, no responder (mensaje libre para asesor)
+        console.log('Mensaje no reconocido como opción de menú, esperando intervención humana')
 
         return new Response('OK', { status: 200 })
     } catch (error) {

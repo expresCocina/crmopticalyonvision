@@ -36,6 +36,8 @@ create table leads (
   assigned_to uuid references profiles(id),
   tags text[], -- Array de etiquetas (e.g. ['examen', 'lentes', 'promo'])
   notes text,
+  bot_active boolean default true, -- Control de bot automático
+  unread_count integer default 0, -- Contador de mensajes no leídos
   last_interaction timestamptz default now(),
   last_reminder_sent timestamptz, -- Last automated reminder sent
   last_agent_interaction timestamptz, -- Para auto-reactivación del bot
@@ -245,5 +247,13 @@ begin
   insert into public.profiles (id, full_name, email, role)
   values (new.id, new.raw_user_meta_data->>'full_name', new.email, 'vendedor'); 
   return new;
+end;
+$$ language plpgsql security definer;
+
+-- RPC function to increment unread count atomically
+create or replace function increment_unread_count(row_id uuid)
+returns void as $$
+begin
+  update leads set unread_count = unread_count + 1 where id = row_id;
 end;
 $$ language plpgsql security definer;

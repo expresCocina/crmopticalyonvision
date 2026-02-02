@@ -8,17 +8,20 @@ CREATE OR REPLACE FUNCTION update_last_agent_interaction()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Si el mensaje es outbound (del agente) y el bot está desactivado
-    IF NEW.direction = 'outbound' AND 
-       (SELECT bot_active FROM leads WHERE id = NEW.lead_id) = false THEN
-        
+    IF NEW.direction = 'outbound' THEN
         UPDATE leads
-        SET last_agent_interaction = NOW()
+        SET 
+            last_agent_interaction = NOW(),
+            bot_active = false  -- Desactivar bot cuando agente envía mensaje
         WHERE id = NEW.lead_id;
     END IF;
     
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop trigger if exists to avoid error
+DROP TRIGGER IF EXISTS on_agent_message ON messages;
 
 -- Trigger to execute the function after message insert
 CREATE TRIGGER on_agent_message
