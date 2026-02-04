@@ -31,7 +31,7 @@ Barrio Olaya
 
     SEDE_CENTRO: `📍 Sede Centro
 Calle 18 #8-62
-Centro Comercial Tower Visión – Local 219
+Centro Comercial Tower Visión – Local 219 – Óptica Lyon Visión
 
 ¿Qué día te gustaría agendar tu examen visual?`,
 
@@ -126,7 +126,7 @@ llévate tu montura de sol totalmente GRATIS.
 Cra 19C #26A-51 Sur – Barrio Olaya
 
 🏢 Sede Centro
-Calle 18 #8-62 – Centro Comercial Tower Visión – Local 219
+Calle 18 #8-62 – Centro Comercial Tower Visión – Local 219 – Óptica Lyon Visión
 
 1️⃣ Hablar con un asesor`,
 
