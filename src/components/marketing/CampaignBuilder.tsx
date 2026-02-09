@@ -87,6 +87,7 @@ export function CampaignBuilder() {
     // Fetch customers and groups
     useEffect(() => {
         const fetchData = async () => {
+            const supabase = createClient()
             // Fetch customers
             const { data: leadsData } = await supabase
                 .from('leads')
@@ -102,6 +103,7 @@ export function CampaignBuilder() {
     }, [])
 
     const fetchGroups = async () => {
+        const supabase = createClient()
         // Fetch groups
         const { data: groupsData } = await supabase
             .from('customer_groups')
@@ -212,6 +214,7 @@ export function CampaignBuilder() {
         toast.loading(campaignMode === 'mass' ? 'Programando campaña...' : 'Enviando campaña...')
 
         try {
+            const supabase = createClient()
             let mediaUrl = null
 
             // Upload image if exists
