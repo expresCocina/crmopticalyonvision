@@ -22,6 +22,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS message_templates_updated_at ON message_templates;
 CREATE TRIGGER message_templates_updated_at
 BEFORE UPDATE ON message_templates
 FOR EACH ROW
@@ -35,15 +36,18 @@ CREATE TABLE IF NOT EXISTS bulk_message_log (
   sent_at TIMESTAMPTZ DEFAULT NOW(),
   sent_by UUID REFERENCES profiles(id),
   message_content TEXT,
-  message_type TEXT DEFAULT 'text', -- 'text', 'image', 'audio'
-  -- Constraint para evitar múltiples envíos el mismo día
-  CONSTRAINT unique_lead_date UNIQUE(lead_id, (sent_at::DATE))
+  message_type TEXT DEFAULT 'text' -- 'text', 'image', 'audio'
 );
 
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_bulk_log_lead_sent ON bulk_message_log(lead_id, sent_at);
 CREATE INDEX IF NOT EXISTS idx_bulk_log_group ON bulk_message_log(group_id);
 CREATE INDEX IF NOT EXISTS idx_bulk_log_sent_date ON bulk_message_log((sent_at::DATE));
+
+-- Índice único para evitar múltiples envíos el mismo día al mismo lead
+-- Usamos un índice único funcional en lugar de constraint
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_lead_date 
+ON bulk_message_log(lead_id, (sent_at::DATE));
 
 -- 3. Verificar que la tabla messages tenga soporte para multimedia
 -- (Ya debería existir, solo verificamos/agregamos columnas faltantes)
