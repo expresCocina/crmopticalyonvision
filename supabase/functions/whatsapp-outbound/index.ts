@@ -139,6 +139,13 @@ serve(async (req) => {
 
         console.log(`Sending ${type} message to ${leadData.wa_id}`)
 
+        // Debug: Log the complete payload
+        if (type === 'image' || type === 'audio') {
+            console.log('Media URL:', media_url)
+            console.log('WhatsApp Payload:', JSON.stringify(whatsappPayload, null, 2))
+        }
+
+
         const whatsappResponse = await fetch(whatsappApiUrl, {
             method: 'POST',
             headers: {

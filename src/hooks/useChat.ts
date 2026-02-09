@@ -219,10 +219,19 @@ export function useChat() {
                 return
             }
 
-            // 2. Get public URL
-            const { data: { publicUrl } } = supabase.storage
+            // 2. Get signed URL (válida por 7 días) para que WhatsApp pueda acceder
+            const { data: signedData, error: signedError } = await supabase.storage
                 .from('chat-media')
-                .getPublicUrl(uploadData.path)
+                .createSignedUrl(uploadData.path, 604800) // 7 días en segundos
+
+            if (signedError || !signedData) {
+                console.error('Signed URL error:', signedError)
+                toast.dismiss()
+                toast.error('Error al generar URL de imagen')
+                return
+            }
+
+            const mediaUrl = signedData.signedUrl
 
             toast.dismiss()
             toast.loading('Enviando imagen...')
@@ -231,7 +240,7 @@ export function useChat() {
             const { data, error } = await supabase.functions.invoke('whatsapp-outbound', {
                 body: {
                     lead_id: activeLeadId,
-                    media_url: publicUrl,
+                    media_url: mediaUrl,
                     caption: caption || '',
                     type: 'image'
                 }
@@ -279,10 +288,19 @@ export function useChat() {
                 return
             }
 
-            // 2. Get public URL
-            const { data: { publicUrl } } = supabase.storage
+            // 2. Get signed URL (válida por 7 días)
+            const { data: signedData, error: signedError } = await supabase.storage
                 .from('chat-media')
-                .getPublicUrl(uploadData.path)
+                .createSignedUrl(uploadData.path, 604800) // 7 días
+
+            if (signedError || !signedData) {
+                console.error('Signed URL error:', signedError)
+                toast.dismiss()
+                toast.error('Error al generar URL de audio')
+                return
+            }
+
+            const mediaUrl = signedData.signedUrl
 
             toast.dismiss()
             toast.loading('Enviando audio...')
@@ -291,7 +309,7 @@ export function useChat() {
             const { data, error } = await supabase.functions.invoke('whatsapp-outbound', {
                 body: {
                     lead_id: activeLeadId,
-                    media_url: publicUrl,
+                    media_url: mediaUrl,
                     type: 'audio'
                 }
             })
