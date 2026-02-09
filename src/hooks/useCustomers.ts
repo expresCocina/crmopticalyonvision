@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { CustomerGroup } from './useCustomerGroups'
 
 export type CustomerSegment = 'frios' | 'proceso' | 'activos' | 'all'
 
@@ -15,9 +16,10 @@ export interface Customer {
     last_interaction: string
     last_reminder_sent: string | null
     created_at: string
+    groups?: CustomerGroup[]
 }
 
-export function useCustomers(segment: CustomerSegment = 'all') {
+export function useCustomers(segment: CustomerSegment = 'all', groupId: string | null = null) {
     const [customers, setCustomers] = useState<Customer[]>([])
     const [loading, setLoading] = useState(true)
     const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -26,29 +28,63 @@ export function useCustomers(segment: CustomerSegment = 'all') {
     const fetchCustomers = async () => {
         setLoading(true)
 
-        let query = supabase
-            .from('leads')
-            .select('*')
-            .order('last_interaction', { ascending: false })
+        try {
+            let query = supabase
+                .from('leads')
+                .select(`
+                    *,
+                    lead_groups (
+                        group:customer_groups (
+                            id,
+                            name,
+                            color,
+                            description,
+                            created_at
+                        )
+                    )
+                `)
+                .order('last_interaction', { ascending: false })
 
-        // Apply segment filter
-        if (segment === 'frios') {
-            query = query.in('status', ['nuevo', 'no_responde'])
-        } else if (segment === 'proceso') {
-            query = query.in('status', ['interesado', 'cotizado', 'agendado'])
-        } else if (segment === 'activos') {
-            query = query.in('status', ['cliente', 'recurrente'])
-        }
+            // Apply segment filter
+            if (segment === 'frios') {
+                query = query.in('status', ['nuevo', 'no_responde'])
+            } else if (segment === 'proceso') {
+                query = query.in('status', ['interesado', 'cotizado', 'agendado'])
+            } else if (segment === 'activos') {
+                query = query.in('status', ['cliente', 'recurrente'])
+            }
 
-        const { data, error } = await query
+            // Apply group filter
+            if (groupId) {
+                // First get lead IDs in the group
+                const { data: groupLeads, error: groupError } = await supabase
+                    .from('lead_groups')
+                    .select('lead_id')
+                    .eq('group_id', groupId)
 
-        if (error) {
+                if (groupError) throw groupError
+
+                const leadIds = groupLeads.map(gl => gl.lead_id)
+                query = query.in('id', leadIds)
+            }
+
+            const { data, error } = await query
+
+            if (error) throw error
+
+            // Transform data to match Customer interface
+            const formattedData = data.map((item: any) => ({
+                ...item,
+                groups: item.lead_groups?.map((lg: any) => lg.group) || []
+            }))
+
+            setCustomers(formattedData as Customer[])
+        } catch (error) {
             console.error('Error fetching customers:', error)
             toast.error('Error al cargar clientes')
-        } else {
-            setCustomers(data as Customer[])
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
     }
 
     const sendBulkMessage = async (message: string, leadIds?: string[]) => {
@@ -131,7 +167,7 @@ export function useCustomers(segment: CustomerSegment = 'all') {
             supabase.removeChannel(channel)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [segment])
+    }, [segment, groupId])
 
     return {
         customers,
