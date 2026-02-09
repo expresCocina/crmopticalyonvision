@@ -173,6 +173,8 @@ export function useCampaigns() {
         loading,
         createCampaign,
         sendCampaign,
+        sendCampaignWithImage,
+        autoAssignGroups,
         getCampaignStats,
         refreshCampaigns: fetchCampaigns
     }
