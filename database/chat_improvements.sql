@@ -204,12 +204,29 @@ $$ LANGUAGE plpgsql;
 -- PASO 4: PLANTILLAS PREDEFINIDAS
 -- =====================================================
 
-INSERT INTO message_templates (name, content, category) VALUES
-  ('Saludo Inicial', 'Hola! 👋 Gracias por contactarnos. ¿En qué podemos ayudarte hoy?', 'saludo'),
-  ('Seguimiento 24h', 'Hola! Te escribo para dar seguimiento a tu consulta. ¿Tienes alguna duda adicional?', 'seguimiento'),
-  ('Recordatorio Cita', 'Te recordamos tu cita para mañana a las {hora}. ¡Te esperamos! 📅', 'recordatorio'),
-  ('Promoción Mensual', '🎉 Tenemos una promoción especial este mes. ¡Consulta por WhatsApp!', 'promocion')
-ON CONFLICT (name) DO NOTHING;
+-- Insertar plantillas solo si no existen
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM message_templates WHERE name = 'Saludo Inicial') THEN
+    INSERT INTO message_templates (name, content, category) 
+    VALUES ('Saludo Inicial', 'Hola! 👋 Gracias por contactarnos. ¿En qué podemos ayudarte hoy?', 'saludo');
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM message_templates WHERE name = 'Seguimiento 24h') THEN
+    INSERT INTO message_templates (name, content, category) 
+    VALUES ('Seguimiento 24h', 'Hola! Te escribo para dar seguimiento a tu consulta. ¿Tienes alguna duda adicional?', 'seguimiento');
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM message_templates WHERE name = 'Recordatorio Cita') THEN
+    INSERT INTO message_templates (name, content, category) 
+    VALUES ('Recordatorio Cita', 'Te recordamos tu cita para mañana a las {hora}. ¡Te esperamos! 📅', 'recordatorio');
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM message_templates WHERE name = 'Promoción Mensual') THEN
+    INSERT INTO message_templates (name, content, category) 
+    VALUES ('Promoción Mensual', '🎉 Tenemos una promoción especial este mes. ¡Consulta por WhatsApp!', 'promocion');
+  END IF;
+END $$;
 
 -- =====================================================
 -- COMENTARIOS
