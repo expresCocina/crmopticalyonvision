@@ -197,7 +197,7 @@ export function CampaignBuilder() {
         }
     }, [campaignMode, customers, selectedStatuses, groups, selectedGroups])
 
-    const handleSend = async () => {
+    const handleSend = async (forceImmediate: boolean = false) => {
         if (!campaignName.trim() || !message.trim()) {
             toast.error('Completa los campos obligatorios')
             return
@@ -214,7 +214,11 @@ export function CampaignBuilder() {
         }
 
         setSending(true)
-        toast.loading(campaignMode === 'mass' ? 'Programando campaña...' : 'Enviando campaña...')
+        if (forceImmediate) {
+            toast.loading('Iniciando campaña y enviando primer grupo...')
+        } else {
+            toast.loading(campaignMode === 'mass' ? 'Programando campaña...' : 'Enviando campaña...')
+        }
 
         try {
             const supabase = createClient()
@@ -264,11 +268,22 @@ export function CampaignBuilder() {
                 if (campaignMode === 'legacy') {
                     // Send immediately
                     const leadIds = filteredCustomers.map(c => c.id)
-                    await sendCampaign(campaign.id, leadIds, message)
+                    if (mediaUrl) {
+                        await sendCampaignWithImage(campaign.id, leadIds, message, mediaUrl)
+                    } else {
+                        await sendCampaign(campaign.id, leadIds, message)
+                    }
                     toast.success(`Enviado a ${leadIds.length} clientes`)
                 } else {
-                    // Scheduled campaign
-                    toast.success('Campaña programada exitosamente')
+                    // Mass Campaign
+                    if (forceImmediate) {
+                        // Trigger immediate send for first group
+                        await triggerInstantCampaign(campaign.id)
+                        toast.success('Campaña creada y envío iniciado inmediatamente')
+                    } else {
+                        // Scheduled campaign
+                        toast.success('Campaña programada exitosamente')
+                    }
                 }
 
                 // Reset form
@@ -517,11 +532,11 @@ export function CampaignBuilder() {
                             </Card>
                         )}
 
-                        <div className="flex gap-2">
+                        <div className="flex flex-col gap-3">
                             <Button
-                                className="flex-1"
+                                className="w-full"
                                 size="lg"
-                                onClick={handleSend}
+                                onClick={() => handleSend(false)}
                                 disabled={
                                     !campaignName.trim() ||
                                     !message.trim() ||
@@ -539,6 +554,24 @@ export function CampaignBuilder() {
                                     </>
                                 )}
                             </Button>
+
+                            {campaignMode === 'mass' && (
+                                <Button
+                                    className="w-full"
+                                    variant="secondary"
+                                    size="lg"
+                                    onClick={() => handleSend(true)}
+                                    disabled={
+                                        !campaignName.trim() ||
+                                        !message.trim() ||
+                                        selectedGroups.length === 0 ||
+                                        sending
+                                    }
+                                >
+                                    <Send className="h-4 w-4 mr-2" />
+                                    Enviar Ahora (Crear y Enviar 1er Grupo)
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
