@@ -15,17 +15,35 @@ import { useMessageTemplates } from '@/hooks/useMessageTemplates'
 interface TemplateSelectorProps {
     onSelect: (content: string) => void
     disabled?: boolean
+    leadName?: string // Nombre del cliente activo
 }
 
-export function TemplateSelector({ onSelect, disabled }: TemplateSelectorProps) {
+export function TemplateSelector({ onSelect, disabled, leadName }: TemplateSelectorProps) {
     const { templates, loading } = useMessageTemplates()
     const [selectedId, setSelectedId] = useState<string>('')
+
+    // Función para reemplazar variables en el contenido
+    const replaceVariables = (content: string): string => {
+        let result = content
+
+        // Reemplazar {nombre} con el nombre del cliente
+        if (leadName) {
+            result = result.replace(/{nombre}/gi, leadName)
+        }
+
+        // Aquí se pueden agregar más variables en el futuro
+        // result = result.replace(/{empresa}/gi, companyName)
+        // result = result.replace(/{fecha}/gi, new Date().toLocaleDateString())
+
+        return result
+    }
 
     const handleSelect = (templateId: string) => {
         setSelectedId(templateId)
         const template = templates.find(t => t.id === templateId)
         if (template) {
-            onSelect(template.content)
+            const processedContent = replaceVariables(template.content)
+            onSelect(processedContent)
         }
     }
 

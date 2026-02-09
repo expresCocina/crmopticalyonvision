@@ -310,6 +310,7 @@ export default function ChatPage() {
                                     />
                                     <TemplateSelector
                                         onSelect={(content) => setInput(content)}
+                                        leadName={activeLead?.full_name || undefined}
                                     />
                                 </div>
 
