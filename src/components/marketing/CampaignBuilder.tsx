@@ -33,7 +33,7 @@ interface CustomerGroup {
 
 export function CampaignBuilder() {
     const { templates } = useTemplates()
-    const { createCampaign, sendCampaign, triggerInstantCampaign } = useCampaigns()
+    const { createCampaign, sendCampaign, sendCampaignWithImage, triggerInstantCampaign } = useCampaigns()
     const [customers, setCustomers] = useState<Lead[]>([])
     const [groups, setGroups] = useState<CustomerGroup[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
