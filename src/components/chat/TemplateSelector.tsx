@@ -35,11 +35,9 @@ export function TemplateSelector({ onSelect, disabled }: TemplateSelectorProps) 
 
     return (
         <Select value={selectedId} onValueChange={handleSelect} disabled={disabled}>
-            <SelectTrigger className="w-[180px]" asChild>
-                <Button variant="ghost" size="sm" className="gap-2">
-                    <FileText className="h-4 w-4" />
-                    <span className="hidden sm:inline">Plantillas</span>
-                </Button>
+            <SelectTrigger className="w-auto gap-2 border-none bg-transparent hover:bg-accent">
+                <FileText className="h-4 w-4" />
+                <span className="hidden sm:inline">Plantillas</span>
             </SelectTrigger>
             <SelectContent>
                 {templates.map((template) => (
