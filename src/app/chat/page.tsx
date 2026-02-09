@@ -221,9 +221,15 @@ export default function ChatPage() {
                                 messages.map((msg) => {
                                     const isOutbound = msg.direction === 'outbound'
                                     const hasImage = msg.media_url && msg.type === 'image'
+                                    const hasAudio = msg.media_url && msg.type === 'audio'
 
                                     // Use proxy for WhatsApp images
                                     const imageUrl = hasImage && msg.media_url
+                                        ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`
+                                        : null
+
+                                    // Use proxy for WhatsApp audio
+                                    const audioUrl = hasAudio && msg.media_url
                                         ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`
                                         : null
 
@@ -245,7 +251,20 @@ export default function ChatPage() {
                                                         />
                                                     </div>
                                                 )}
-                                                {(msg.content || msg.caption) && (
+                                                {audioUrl && (
+                                                    <div className="mb-2">
+                                                        <audio
+                                                            controls
+                                                            className="w-full max-w-xs"
+                                                            preload="metadata"
+                                                        >
+                                                            <source src={audioUrl} type="audio/ogg" />
+                                                            <source src={audioUrl} type="audio/mpeg" />
+                                                            Tu navegador no soporta audio.
+                                                        </audio>
+                                                    </div>
+                                                )}
+                                                {(msg.content || msg.caption) && !hasAudio && (
                                                     <p className="whitespace-pre-wrap break-words">{msg.content || msg.caption}</p>
                                                 )}
                                                 <span className={cn(
