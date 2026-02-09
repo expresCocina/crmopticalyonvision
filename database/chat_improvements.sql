@@ -45,19 +45,17 @@ CREATE TABLE bulk_message_log (
   lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
   group_id UUID REFERENCES customer_groups(id) ON DELETE SET NULL,
   sent_at TIMESTAMPTZ DEFAULT NOW(),
+  sent_date DATE GENERATED ALWAYS AS (sent_at::DATE) STORED,
   sent_by UUID REFERENCES profiles(id),
   message_content TEXT,
-  message_type TEXT DEFAULT 'text' -- 'text', 'image', 'audio'
+  message_type TEXT DEFAULT 'text', -- 'text', 'image', 'audio'
+  UNIQUE(lead_id, sent_date) -- Evitar múltiples envíos el mismo día
 );
 
 -- Índices para performance
 CREATE INDEX idx_bulk_log_lead_sent ON bulk_message_log(lead_id, sent_at);
 CREATE INDEX idx_bulk_log_group ON bulk_message_log(group_id);
-CREATE INDEX idx_bulk_log_sent_date ON bulk_message_log((sent_at::DATE));
-
--- Índice único para evitar múltiples envíos el mismo día al mismo lead
-CREATE UNIQUE INDEX idx_unique_lead_date 
-ON bulk_message_log(lead_id, (sent_at::DATE));
+CREATE INDEX idx_bulk_log_sent_date ON bulk_message_log(sent_date);
 
 -- 3. Verificar que la tabla messages tenga soporte para multimedia
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS caption TEXT;
