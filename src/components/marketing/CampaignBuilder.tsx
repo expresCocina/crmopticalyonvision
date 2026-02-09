@@ -65,6 +65,9 @@ export function CampaignBuilder() {
     const [message, setMessage] = useState('')
     const [sending, setSending] = useState(false)
 
+    // Campaign State
+    const [campaignMode, setCampaignMode] = useState<'legacy' | 'mass'>('mass')
+
     // Legacy Mode State (Filter by Status)
     const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
 
