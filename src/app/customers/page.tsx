@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2, Search, Send, Users } from 'lucide-react'
+import { Loader2, Search, Send, Users, Upload } from 'lucide-react'
 import { CustomerSegmentTabs } from '@/components/customers/CustomerSegmentTabs'
 import { BulkMessageDialog } from '@/components/customers/BulkMessageDialog'
+import { ImportCustomersDialog } from '@/components/customers/ImportCustomersDialog'
 import { format, formatDistanceToNow, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -16,6 +17,7 @@ export default function CustomersPage() {
     const [segment, setSegment] = useState<CustomerSegment>('all')
     const [searchTerm, setSearchTerm] = useState('')
     const [showBulkDialog, setShowBulkDialog] = useState(false)
+    const [showImportDialog, setShowImportDialog] = useState(false)
 
     const { customers, loading, selectedIds, toggleSelection, selectAll, clearSelection, sendBulkMessage } = useCustomers(segment)
 
@@ -93,6 +95,13 @@ export default function CustomersPage() {
                             />
                         </div>
                         <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => setShowImportDialog(true)}
+                            >
+                                <Upload className="h-4 w-4 mr-2" />
+                                Importar
+                            </Button>
                             {selectedIds.length > 0 ? (
                                 <>
                                     <Button
@@ -210,6 +219,16 @@ export default function CustomersPage() {
                 onOpenChange={setShowBulkDialog}
                 selectedCount={selectedIds.length}
                 onSend={sendBulkMessage}
+            />
+
+            {/* Import Customers Dialog */}
+            <ImportCustomersDialog
+                open={showImportDialog}
+                onOpenChange={setShowImportDialog}
+                onImportComplete={() => {
+                    // Refrescar la lista de clientes después de importar
+                    window.location.reload()
+                }}
             />
         </div>
     )
