@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Lead } from '@/types/database'
+import { Lead, LeadStatus } from '@/types/database'
 
 export function useLeads() {
     const [leads, setLeads] = useState<Lead[]>([])
@@ -53,5 +53,27 @@ export function useLeads() {
         }
     }, [supabase])
 
-    return { leads, loading }
+    const updateLeadStatus = async (leadId: string, newStatus: LeadStatus) => {
+        try {
+            // Optimistic update
+            setLeads(prev => prev.map(lead =>
+                lead.id === leadId ? { ...lead, status: newStatus } : lead
+            ))
+
+            const { error } = await supabase
+                .from('leads')
+                .update({ status: newStatus })
+                .eq('id', leadId)
+
+            if (error) {
+                // Revert if error
+                console.error('Error updating lead status:', error)
+                // You might want to fetch leads again here to revert
+            }
+        } catch (error) {
+            console.error('Error updating lead status:', error)
+        }
+    }
+
+    return { leads, loading, updateLeadStatus }
 }
