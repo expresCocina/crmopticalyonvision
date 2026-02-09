@@ -40,11 +40,27 @@ CREATE TABLE IF NOT EXISTS bulk_message_log (
   lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
   group_id UUID REFERENCES customer_groups(id) ON DELETE SET NULL,
   sent_at TIMESTAMPTZ DEFAULT NOW(),
-  sent_date DATE GENERATED ALWAYS AS (sent_at::DATE) STORED,
+  sent_date DATE, -- Se actualiza automáticamente con trigger
   sent_by UUID REFERENCES profiles(id),
   message_content TEXT,
   message_type TEXT DEFAULT 'text'
 );
+
+-- Función para actualizar sent_date automáticamente
+CREATE OR REPLACE FUNCTION update_bulk_message_log_sent_date()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.sent_date = NEW.sent_at::DATE;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger para actualizar sent_date
+DROP TRIGGER IF EXISTS bulk_message_log_set_sent_date ON bulk_message_log;
+CREATE TRIGGER bulk_message_log_set_sent_date
+BEFORE INSERT OR UPDATE ON bulk_message_log
+FOR EACH ROW
+EXECUTE FUNCTION update_bulk_message_log_sent_date();
 
 -- Constraint único (solo si no existe)
 DO $$
