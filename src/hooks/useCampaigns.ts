@@ -175,14 +175,18 @@ export function useCampaigns() {
             if (updateError) throw updateError
 
             // Send via WhatsApp with image
-            for (const leadId of leadIds) {
+            for (let i = 0; i < leadIds.length; i++) {
+                const leadId = leadIds[i]
+                const messageId = insertedMessages[i].id
+
                 await supabase.functions.invoke('whatsapp-outbound', {
                     body: {
                         lead_id: leadId,
                         message,
                         media_url: mediaUrl,
                         type: 'image',
-                        caption: message
+                        caption: message,
+                        message_id: messageId // Pass ID to avoid duplication
                     }
                 })
             }

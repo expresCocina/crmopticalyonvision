@@ -209,7 +209,8 @@ Deno.serve(async (req) => {
                     // Enviar por WhatsApp
                     const whatsappPayload: any = {
                         lead_id: lead.id,
-                        message: personalizedMessage
+                        message: personalizedMessage,
+                        message_id: message.id // Pass ID to update existing message
                     }
 
                     if (campaign.media_url) {

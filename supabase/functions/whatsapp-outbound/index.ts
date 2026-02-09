@@ -13,6 +13,7 @@ interface SendMessageRequest {
     media_url?: string // For images and audio
     caption?: string // For image captions
     type?: 'text' | 'image' | 'audio' // Message type
+    message_id?: string // Optional: existing message ID to update
 }
 
 serve(async (req) => {
@@ -31,7 +32,7 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
 
-        const { lead_id, message, wa_id, media_url, caption, type = 'text' }: SendMessageRequest = await req.json()
+        const { lead_id, message, wa_id, media_url, caption, type = 'text', message_id }: SendMessageRequest = await req.json()
 
         // Validate required fields based on message type
         if (type === 'text' && !message) {
@@ -248,32 +249,54 @@ serve(async (req) => {
         const wa_message_id = whatsappResult.messages?.[0]?.id
 
         // Save outbound message to database
-        const messageData: any = {
-            lead_id: leadData.id,
-            wa_message_id,
-            type: type,
-            direction: 'outbound',
-            status: 'sent',
-            created_at: new Date().toISOString()
-        }
+        // Save or update outbound message
+        let dbMessageId = message_id
 
-        // Add content/media based on type
-        if (type === 'text') {
-            messageData.content = message
-        } else if (type === 'image') {
-            messageData.media_url = media_url
-            messageData.caption = caption || null
-        } else if (type === 'audio') {
-            messageData.media_url = media_url
-        }
+        if (message_id) {
+            // Update existing message
+            const { error: updateError } = await supabase
+                .from('messages')
+                .update({
+                    wa_message_id,
+                    status: 'sent'
+                })
+                .eq('id', message_id)
 
-        const { error: messageError } = await supabase
-            .from('messages')
-            .insert(messageData)
+            if (updateError) {
+                console.error('Error updating message:', updateError)
+            }
+        } else {
+            // Insert new message
+            const messageData: any = {
+                lead_id: leadData.id,
+                wa_message_id,
+                type: type,
+                direction: 'outbound',
+                status: 'sent',
+                created_at: new Date().toISOString()
+            }
 
-        if (messageError) {
-            console.error('Error saving message to database:', messageError)
-            // Don't fail the request since message was sent successfully
+            // Add content/media based on type
+            if (type === 'text') {
+                messageData.content = message
+            } else if (type === 'image') {
+                messageData.media_url = media_url
+                messageData.caption = caption || null
+            } else if (type === 'audio') {
+                messageData.media_url = media_url
+            }
+
+            const { data: newMessage, error: insertError } = await supabase
+                .from('messages')
+                .insert(messageData)
+                .select('id')
+                .single()
+
+            if (insertError) {
+                console.error('Error saving message to database:', insertError)
+            } else if (newMessage) {
+                dbMessageId = newMessage.id
+            }
         }
 
         // Update lead last_interaction and deactivate bot (agent is taking over)
