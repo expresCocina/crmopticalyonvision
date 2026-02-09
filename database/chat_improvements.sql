@@ -1,21 +1,14 @@
 -- =====================================================
--- SCRIPT DE LIMPIEZA Y RECREACIÓN
--- TABLAS PARA MEJORAS DEL CHAT CENTER
+-- SCRIPT SEGURO PARA MEJORAS DEL CHAT CENTER
+-- Solo crea elementos si NO existen (sin eliminar nada)
 -- =====================================================
 
--- PASO 1: Limpiar elementos existentes (si existen)
-DROP TRIGGER IF EXISTS message_templates_updated_at ON message_templates;
-DROP FUNCTION IF EXISTS update_message_templates_updated_at();
-DROP FUNCTION IF EXISTS get_eligible_leads_for_bulk(UUID, INT);
-DROP TABLE IF EXISTS bulk_message_log CASCADE;
-DROP TABLE IF EXISTS message_templates CASCADE;
-
 -- =====================================================
--- PASO 2: Crear tablas nuevas
+-- PASO 1: Crear tablas (solo si no existen)
 -- =====================================================
 
 -- 1. Tabla de plantillas de mensajes
-CREATE TABLE message_templates (
+CREATE TABLE IF NOT EXISTS message_templates (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
   content TEXT NOT NULL,
@@ -25,8 +18,8 @@ CREATE TABLE message_templates (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Trigger para actualizar updated_at
-CREATE FUNCTION update_message_templates_updated_at()
+-- Función para actualizar updated_at (solo si no existe)
+CREATE OR REPLACE FUNCTION update_message_templates_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
@@ -34,13 +27,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Trigger (se recrea si existe)
+DROP TRIGGER IF EXISTS message_templates_updated_at ON message_templates;
 CREATE TRIGGER message_templates_updated_at
 BEFORE UPDATE ON message_templates
 FOR EACH ROW
 EXECUTE FUNCTION update_message_templates_updated_at();
 
 -- 2. Tabla de log de envíos masivos (control de límites)
-CREATE TABLE bulk_message_log (
+CREATE TABLE IF NOT EXISTS bulk_message_log (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
   group_id UUID REFERENCES customer_groups(id) ON DELETE SET NULL,
@@ -48,66 +43,117 @@ CREATE TABLE bulk_message_log (
   sent_date DATE GENERATED ALWAYS AS (sent_at::DATE) STORED,
   sent_by UUID REFERENCES profiles(id),
   message_content TEXT,
-  message_type TEXT DEFAULT 'text', -- 'text', 'image', 'audio'
-  UNIQUE(lead_id, sent_date) -- Evitar múltiples envíos el mismo día
+  message_type TEXT DEFAULT 'text'
 );
 
--- Índices para performance
-CREATE INDEX idx_bulk_log_lead_sent ON bulk_message_log(lead_id, sent_at);
-CREATE INDEX idx_bulk_log_group ON bulk_message_log(group_id);
-CREATE INDEX idx_bulk_log_sent_date ON bulk_message_log(sent_date);
+-- Constraint único (solo si no existe)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'unique_lead_sent_date'
+  ) THEN
+    ALTER TABLE bulk_message_log 
+    ADD CONSTRAINT unique_lead_sent_date UNIQUE(lead_id, sent_date);
+  END IF;
+END $$;
+
+-- Índices para performance (solo si no existen)
+CREATE INDEX IF NOT EXISTS idx_bulk_log_lead_sent ON bulk_message_log(lead_id, sent_at);
+CREATE INDEX IF NOT EXISTS idx_bulk_log_group ON bulk_message_log(group_id);
+CREATE INDEX IF NOT EXISTS idx_bulk_log_sent_date ON bulk_message_log(sent_date);
 
 -- 3. Verificar que la tabla messages tenga soporte para multimedia
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS caption TEXT;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_url TEXT;
-ALTER TABLE messages ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'text';
+
+-- Actualizar columna type si no tiene el default correcto
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'messages' AND column_name = 'type'
+  ) THEN
+    ALTER TABLE messages ADD COLUMN type TEXT DEFAULT 'text';
+  END IF;
+END $$;
 
 -- =====================================================
--- PASO 3: RLS POLICIES
+-- PASO 2: RLS POLICIES (solo si no existen)
 -- =====================================================
 
 -- Plantillas de mensajes
 ALTER TABLE message_templates ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Users can view all templates" ON message_templates;
-CREATE POLICY "Users can view all templates" 
-ON message_templates FOR SELECT 
-USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'message_templates' AND policyname = 'Users can view all templates'
+  ) THEN
+    CREATE POLICY "Users can view all templates" 
+    ON message_templates FOR SELECT 
+    USING (true);
+  END IF;
 
-DROP POLICY IF EXISTS "Users can create templates" ON message_templates;
-CREATE POLICY "Users can create templates" 
-ON message_templates FOR INSERT 
-WITH CHECK (true);
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'message_templates' AND policyname = 'Users can create templates'
+  ) THEN
+    CREATE POLICY "Users can create templates" 
+    ON message_templates FOR INSERT 
+    WITH CHECK (true);
+  END IF;
 
-DROP POLICY IF EXISTS "Users can update templates" ON message_templates;
-CREATE POLICY "Users can update templates" 
-ON message_templates FOR UPDATE 
-USING (true);
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'message_templates' AND policyname = 'Users can update templates'
+  ) THEN
+    CREATE POLICY "Users can update templates" 
+    ON message_templates FOR UPDATE 
+    USING (true);
+  END IF;
 
-DROP POLICY IF EXISTS "Users can delete templates" ON message_templates;
-CREATE POLICY "Users can delete templates" 
-ON message_templates FOR DELETE 
-USING (true);
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'message_templates' AND policyname = 'Users can delete templates'
+  ) THEN
+    CREATE POLICY "Users can delete templates" 
+    ON message_templates FOR DELETE 
+    USING (true);
+  END IF;
+END $$;
 
 -- Log de envíos masivos
 ALTER TABLE bulk_message_log ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Users can view all logs" ON bulk_message_log;
-CREATE POLICY "Users can view all logs" 
-ON bulk_message_log FOR SELECT 
-USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'bulk_message_log' AND policyname = 'Users can view all logs'
+  ) THEN
+    CREATE POLICY "Users can view all logs" 
+    ON bulk_message_log FOR SELECT 
+    USING (true);
+  END IF;
 
-DROP POLICY IF EXISTS "Users can insert logs" ON bulk_message_log;
-CREATE POLICY "Users can insert logs" 
-ON bulk_message_log FOR INSERT 
-WITH CHECK (true);
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'bulk_message_log' AND policyname = 'Users can insert logs'
+  ) THEN
+    CREATE POLICY "Users can insert logs" 
+    ON bulk_message_log FOR INSERT 
+    WITH CHECK (true);
+  END IF;
+END $$;
 
 -- =====================================================
--- PASO 4: FUNCIONES AUXILIARES
+-- PASO 3: FUNCIONES AUXILIARES
 -- =====================================================
 
 -- Función para obtener leads elegibles para envío masivo
-CREATE FUNCTION get_eligible_leads_for_bulk(
+CREATE OR REPLACE FUNCTION get_eligible_leads_for_bulk(
   p_group_id UUID,
   p_limit INT DEFAULT 50
 )
@@ -139,7 +185,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =====================================================
--- PASO 5: PLANTILLAS PREDEFINIDAS
+-- PASO 4: PLANTILLAS PREDEFINIDAS
 -- =====================================================
 
 INSERT INTO message_templates (name, content, category) VALUES
@@ -156,3 +202,8 @@ ON CONFLICT (name) DO NOTHING;
 COMMENT ON TABLE message_templates IS 'Plantillas de mensajes predefinidas para envío rápido';
 COMMENT ON TABLE bulk_message_log IS 'Registro de envíos masivos para control de límites de WhatsApp';
 COMMENT ON FUNCTION get_eligible_leads_for_bulk IS 'Obtiene leads elegibles para envío masivo (excluye últimos 3 días)';
+
+-- =====================================================
+-- FINALIZADO
+-- =====================================================
+SELECT 'Script ejecutado exitosamente. Tablas y funciones creadas.' as resultado;
