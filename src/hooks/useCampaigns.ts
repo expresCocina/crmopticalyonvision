@@ -14,6 +14,13 @@ export interface Campaign {
     is_active: boolean
     created_by: string
     created_at: string
+    // Nuevos campos
+    media_url?: string | null
+    send_interval_days?: number
+    current_group_index?: number
+    target_groups?: string[] | null
+    campaign_type?: 'text' | 'image' | 'image_text'
+    last_sent_at?: string | null
 }
 
 export interface CampaignSend {
@@ -117,6 +124,89 @@ export function useCampaigns() {
             return { success: true }
         } catch (error) {
             console.error('Error sending campaign:', error)
+            return { success: false, error }
+        }
+    }
+
+    const sendCampaignWithImage = async (
+        campaignId: string,
+        leadIds: string[],
+        message: string,
+        mediaUrl: string
+    ) => {
+        try {
+            // Insert messages for each lead with image
+            const messages = leadIds.map(leadId => ({
+                lead_id: leadId,
+                content: message,
+                direction: 'outbound' as const,
+                type: 'image',
+                media_url: mediaUrl,
+                status: 'sent' as const
+            }))
+
+            const { data: insertedMessages, error: messageError } = await supabase
+                .from('messages')
+                .insert(messages)
+                .select()
+
+            if (messageError) throw messageError
+
+            // Create campaign sends records
+            const campaignSends = insertedMessages.map((msg, index) => ({
+                campaign_id: campaignId,
+                lead_id: leadIds[index],
+                message_id: msg.id,
+                status: 'sent'
+            }))
+
+            const { error: sendError } = await supabase
+                .from('campaign_sends')
+                .insert(campaignSends)
+
+            if (sendError) throw sendError
+
+            // Update campaign sent_count
+            const { error: updateError } = await supabase
+                .from('marketing_campaigns')
+                .update({ sent_count: leadIds.length })
+                .eq('id', campaignId)
+
+            if (updateError) throw updateError
+
+            // Send via WhatsApp with image
+            for (const leadId of leadIds) {
+                await supabase.functions.invoke('whatsapp-outbound', {
+                    body: {
+                        lead_id: leadId,
+                        message,
+                        media_url: mediaUrl,
+                        type: 'image',
+                        caption: message
+                    }
+                })
+            }
+
+            await fetchCampaigns()
+            return { success: true }
+        } catch (error) {
+            console.error('Error sending campaign with image:', error)
+            return { success: false, error }
+        }
+    }
+
+    const autoAssignGroups = async (batchSize: number = 50, groupPrefix: string = 'Grupo') => {
+        try {
+            const { data, error } = await supabase.rpc('auto_assign_customer_groups', {
+                batch_size: batchSize,
+                group_prefix: groupPrefix
+            })
+
+            if (error) throw error
+
+            return { success: true, data }
+        } catch (error) {
+            console.error('Error auto-assigning groups:', error)
             return { success: false, error }
         }
     }
