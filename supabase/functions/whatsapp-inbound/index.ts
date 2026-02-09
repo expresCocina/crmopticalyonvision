@@ -205,6 +205,23 @@ serve(async (req) => {
             }
         }
 
+        // Process audio messages
+        if (messageType === 'audio') {
+            const audioId = message.audio?.id
+            if (audioId) {
+                try {
+                    const mediaResponse = await fetch(`https://graph.facebook.com/v24.0/${audioId}`, {
+                        headers: { 'Authorization': `Bearer ${Deno.env.get('WHATSAPP_API_TOKEN')}` }
+                    })
+                    const mediaData = await mediaResponse.json()
+                    mediaUrl = mediaData.url
+                    console.log('Audio message received, URL:', mediaUrl)
+                } catch (err) {
+                    console.error('Error downloading audio:', err)
+                }
+            }
+        }
+
         // Extract Profile Name
         const profileName = value.contacts?.[0]?.profile?.name || null
 
@@ -229,11 +246,13 @@ serve(async (req) => {
             await supabase.from('leads').update({ full_name: profileName }).eq('id', leadId)
         }
 
-        // Guardar mensaje entrante (con media_url si es imagen)
+        // Guardar mensaje entrante (con media_url si es imagen o audio)
+        const displayContent = messageContent || caption || (messageType === 'image' ? '[Imagen]' : messageType === 'audio' ? '[Audio]' : '')
+
         await supabase.from('messages').insert({
             lead_id: leadId,
             wa_message_id: message.id,
-            content: messageContent || caption || '[Imagen]',
+            content: displayContent,
             type: messageType,
             direction: 'inbound',
             status: 'delivered',
