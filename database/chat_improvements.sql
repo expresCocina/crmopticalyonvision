@@ -1,9 +1,21 @@
 -- =====================================================
+-- SCRIPT DE LIMPIEZA Y RECREACIÓN
 -- TABLAS PARA MEJORAS DEL CHAT CENTER
 -- =====================================================
 
+-- PASO 1: Limpiar elementos existentes (si existen)
+DROP TRIGGER IF EXISTS message_templates_updated_at ON message_templates;
+DROP FUNCTION IF EXISTS update_message_templates_updated_at();
+DROP FUNCTION IF EXISTS get_eligible_leads_for_bulk(UUID, INT);
+DROP TABLE IF EXISTS bulk_message_log CASCADE;
+DROP TABLE IF EXISTS message_templates CASCADE;
+
+-- =====================================================
+-- PASO 2: Crear tablas nuevas
+-- =====================================================
+
 -- 1. Tabla de plantillas de mensajes
-CREATE TABLE IF NOT EXISTS message_templates (
+CREATE TABLE message_templates (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
   content TEXT NOT NULL,
@@ -14,7 +26,7 @@ CREATE TABLE IF NOT EXISTS message_templates (
 );
 
 -- Trigger para actualizar updated_at
-CREATE OR REPLACE FUNCTION update_message_templates_updated_at()
+CREATE FUNCTION update_message_templates_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
@@ -22,14 +34,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS message_templates_updated_at ON message_templates;
 CREATE TRIGGER message_templates_updated_at
 BEFORE UPDATE ON message_templates
 FOR EACH ROW
 EXECUTE FUNCTION update_message_templates_updated_at();
 
 -- 2. Tabla de log de envíos masivos (control de límites)
-CREATE TABLE IF NOT EXISTS bulk_message_log (
+CREATE TABLE bulk_message_log (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
   group_id UUID REFERENCES customer_groups(id) ON DELETE SET NULL,
@@ -40,40 +51,42 @@ CREATE TABLE IF NOT EXISTS bulk_message_log (
 );
 
 -- Índices para performance
-CREATE INDEX IF NOT EXISTS idx_bulk_log_lead_sent ON bulk_message_log(lead_id, sent_at);
-CREATE INDEX IF NOT EXISTS idx_bulk_log_group ON bulk_message_log(group_id);
-CREATE INDEX IF NOT EXISTS idx_bulk_log_sent_date ON bulk_message_log((sent_at::DATE));
+CREATE INDEX idx_bulk_log_lead_sent ON bulk_message_log(lead_id, sent_at);
+CREATE INDEX idx_bulk_log_group ON bulk_message_log(group_id);
+CREATE INDEX idx_bulk_log_sent_date ON bulk_message_log((sent_at::DATE));
 
 -- Índice único para evitar múltiples envíos el mismo día al mismo lead
--- Usamos un índice único funcional en lugar de constraint
-CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_lead_date 
+CREATE UNIQUE INDEX idx_unique_lead_date 
 ON bulk_message_log(lead_id, (sent_at::DATE));
 
 -- 3. Verificar que la tabla messages tenga soporte para multimedia
--- (Ya debería existir, solo verificamos/agregamos columnas faltantes)
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS caption TEXT;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_url TEXT;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'text';
 
 -- =====================================================
--- RLS POLICIES
+-- PASO 3: RLS POLICIES
 -- =====================================================
 
 -- Plantillas de mensajes
 ALTER TABLE message_templates ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view all templates" ON message_templates;
 CREATE POLICY "Users can view all templates" 
 ON message_templates FOR SELECT 
 USING (true);
 
+DROP POLICY IF EXISTS "Users can create templates" ON message_templates;
 CREATE POLICY "Users can create templates" 
 ON message_templates FOR INSERT 
 WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Users can update templates" ON message_templates;
 CREATE POLICY "Users can update templates" 
 ON message_templates FOR UPDATE 
 USING (true);
 
+DROP POLICY IF EXISTS "Users can delete templates" ON message_templates;
 CREATE POLICY "Users can delete templates" 
 ON message_templates FOR DELETE 
 USING (true);
@@ -81,21 +94,22 @@ USING (true);
 -- Log de envíos masivos
 ALTER TABLE bulk_message_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view all logs" ON bulk_message_log;
 CREATE POLICY "Users can view all logs" 
 ON bulk_message_log FOR SELECT 
 USING (true);
 
+DROP POLICY IF EXISTS "Users can insert logs" ON bulk_message_log;
 CREATE POLICY "Users can insert logs" 
 ON bulk_message_log FOR INSERT 
 WITH CHECK (true);
 
 -- =====================================================
--- FUNCIONES AUXILIARES
+-- PASO 4: FUNCIONES AUXILIARES
 -- =====================================================
 
 -- Función para obtener leads elegibles para envío masivo
--- (excluye leads contactados en los últimos 3 días)
-CREATE OR REPLACE FUNCTION get_eligible_leads_for_bulk(
+CREATE FUNCTION get_eligible_leads_for_bulk(
   p_group_id UUID,
   p_limit INT DEFAULT 50
 )
@@ -127,10 +141,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =====================================================
--- PLANTILLAS PREDEFINIDAS (OPCIONALES)
+-- PASO 5: PLANTILLAS PREDEFINIDAS
 -- =====================================================
 
--- Insertar algunas plantillas de ejemplo
 INSERT INTO message_templates (name, content, category) VALUES
   ('Saludo Inicial', 'Hola! 👋 Gracias por contactarnos. ¿En qué podemos ayudarte hoy?', 'saludo'),
   ('Seguimiento 24h', 'Hola! Te escribo para dar seguimiento a tu consulta. ¿Tienes alguna duda adicional?', 'seguimiento'),
