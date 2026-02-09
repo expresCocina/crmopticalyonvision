@@ -21,9 +21,26 @@ export function AudioRecorder({ onRecordingComplete, disabled }: AudioRecorderPr
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-            const mediaRecorder = new MediaRecorder(stream, {
-                mimeType: 'audio/webm;codecs=opus'
-            })
+
+            // Try to use a WhatsApp-compatible format
+            let mimeType = 'audio/webm;codecs=opus' // Default fallback
+            const supportedTypes = [
+                'audio/mp4',
+                'audio/aac',
+                'audio/mpeg',
+                'audio/webm;codecs=opus'
+            ]
+
+            // Find first supported type
+            for (const type of supportedTypes) {
+                if (MediaRecorder.isTypeSupported(type)) {
+                    mimeType = type
+                    console.log('Using audio format:', type)
+                    break
+                }
+            }
+
+            const mediaRecorder = new MediaRecorder(stream, { mimeType })
 
             mediaRecorderRef.current = mediaRecorder
             chunksRef.current = []
@@ -35,7 +52,9 @@ export function AudioRecorder({ onRecordingComplete, disabled }: AudioRecorderPr
             }
 
             mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(chunksRef.current, { type: 'audio/ogg; codecs=opus' })
+                // Use the actual MIME type from the recorder
+                const actualMimeType = mediaRecorder.mimeType || mimeType
+                const audioBlob = new Blob(chunksRef.current, { type: actualMimeType })
                 const url = URL.createObjectURL(audioBlob)
                 setAudioURL(url)
 
@@ -72,7 +91,9 @@ export function AudioRecorder({ onRecordingComplete, disabled }: AudioRecorderPr
 
     const sendAudio = () => {
         if (chunksRef.current.length > 0) {
-            const audioBlob = new Blob(chunksRef.current, { type: 'audio/ogg; codecs=opus' })
+            // Use the actual MIME type from the recorder
+            const actualMimeType = mediaRecorderRef.current?.mimeType || 'audio/webm;codecs=opus'
+            const audioBlob = new Blob(chunksRef.current, { type: actualMimeType })
             onRecordingComplete(audioBlob)
 
             // Reset

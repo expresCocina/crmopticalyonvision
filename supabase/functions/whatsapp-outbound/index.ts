@@ -140,7 +140,7 @@ serve(async (req) => {
                 const formData = new FormData()
                 formData.append('file', audioBlob, 'audio.ogg')
                 formData.append('messaging_product', 'whatsapp')
-                formData.append('type', 'audio/ogg')
+                formData.append('type', 'audio/ogg; codecs=opus')
 
                 const uploadResponse = await fetch(
                     `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/media`,

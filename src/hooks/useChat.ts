@@ -270,15 +270,26 @@ export function useChat() {
         try {
             toast.loading('Subiendo audio...')
 
+            // Detect actual audio format from blob
+            const audioType = audioBlob.type || 'audio/webm;codecs=opus'
+            console.log('Audio blob type:', audioType)
+
+            // Determine file extension based on MIME type
+            let extension = 'webm'
+            if (audioType.includes('mp4')) extension = 'mp4'
+            else if (audioType.includes('aac')) extension = 'aac'
+            else if (audioType.includes('mpeg') || audioType.includes('mp3')) extension = 'mp3'
+            else if (audioType.includes('ogg')) extension = 'ogg'
+
             // 1. Upload audio to Supabase Storage
-            const fileName = `${activeLeadId}/${Date.now()}.ogg`
+            const fileName = `${activeLeadId}/${Date.now()}.${extension}`
 
             const { data: uploadData, error: uploadError } = await supabase.storage
                 .from('chat-media')
                 .upload(fileName, audioBlob, {
                     cacheControl: '3600',
                     upsert: false,
-                    contentType: 'audio/ogg; codecs=opus'
+                    contentType: audioType
                 })
 
             if (uploadError) {
