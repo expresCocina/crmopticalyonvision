@@ -137,10 +137,35 @@ serve(async (req) => {
                 const audioBlob = await audioResponse.blob()
 
                 // 2. Upload to WhatsApp Media API
+                // Detect the actual MIME type from the blob
+                const audioType = audioBlob.type || 'audio/webm;codecs=opus'
+                console.log('Audio blob content-type:', audioType)
+
+                // Determine file extension and WhatsApp type
+                let fileName = 'audio.ogg'
+                let whatsappType = 'audio/ogg'
+
+                if (audioType.includes('mp4')) {
+                    fileName = 'audio.mp4'
+                    whatsappType = 'audio/mp4'
+                } else if (audioType.includes('aac')) {
+                    fileName = 'audio.aac'
+                    whatsappType = 'audio/aac'
+                } else if (audioType.includes('mpeg') || audioType.includes('mp3')) {
+                    fileName = 'audio.mp3'
+                    whatsappType = 'audio/mpeg'
+                } else if (audioType.includes('webm')) {
+                    // WebM is not supported by WhatsApp, but we'll try anyway
+                    fileName = 'audio.webm'
+                    whatsappType = 'audio/webm'
+                }
+
+                console.log('Using filename:', fileName, 'type:', whatsappType)
+
                 const formData = new FormData()
-                formData.append('file', audioBlob, 'audio.ogg')
+                formData.append('file', audioBlob, fileName)
                 formData.append('messaging_product', 'whatsapp')
-                formData.append('type', 'audio/ogg; codecs=opus')
+                formData.append('type', whatsappType)
 
                 const uploadResponse = await fetch(
                     `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/media`,
