@@ -228,10 +228,17 @@ export default function ChatPage() {
                                         ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`
                                         : null
 
-                                    // Use proxy for WhatsApp audio
-                                    const audioUrl = hasAudio && msg.media_url
-                                        ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`
-                                        : null
+                                    // For audio: use proxy only for WhatsApp URLs (inbound), direct URL for Supabase (outbound)
+                                    let audioUrl = null
+                                    if (hasAudio && msg.media_url) {
+                                        // Check if it's a Supabase Storage URL (outbound audio)
+                                        if (msg.media_url.includes('supabase.co/storage')) {
+                                            audioUrl = msg.media_url // Direct URL for Supabase Storage
+                                        } else {
+                                            // WhatsApp URL (inbound audio) - use proxy
+                                            audioUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`
+                                        }
+                                    }
 
                                     return (
                                         <div key={msg.id} className={cn("flex", isOutbound ? "justify-end" : "justify-start")}>
@@ -252,14 +259,20 @@ export default function ChatPage() {
                                                     </div>
                                                 )}
                                                 {audioUrl && (
-                                                    <div className="mb-2">
+                                                    <div className="mb-2 min-w-[250px]">
                                                         <audio
                                                             controls
-                                                            className="w-full max-w-xs"
+                                                            className="w-full h-10 rounded-lg"
                                                             preload="metadata"
+                                                            style={{
+                                                                filter: isOutbound ? 'invert(1) hue-rotate(180deg)' : 'none',
+                                                                maxWidth: '300px'
+                                                            }}
                                                         >
+                                                            <source src={audioUrl} type="audio/ogg; codecs=opus" />
                                                             <source src={audioUrl} type="audio/ogg" />
                                                             <source src={audioUrl} type="audio/mpeg" />
+                                                            <source src={audioUrl} type="audio/webm" />
                                                             Tu navegador no soporta audio.
                                                         </audio>
                                                     </div>
