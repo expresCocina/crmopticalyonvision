@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
     Dialog,
     DialogContent,
@@ -26,9 +26,16 @@ export function AssignToGroupDialog({
     selectedLeadIds,
     onAssignComplete
 }: AssignToGroupDialogProps) {
-    const { groups, addLeadsToGroup, removeLeadsFromGroup, loading } = useCustomerGroups()
+    const { groups, addLeadsToGroup, removeLeadsFromGroup, loading, fetchGroups } = useCustomerGroups()
     const [selectedGroups, setSelectedGroups] = useState<string[]>([])
     const [assigning, setAssigning] = useState(false)
+
+    // Recargar grupos al abrir el diálogo para asegurar que estén actualizados
+    useEffect(() => {
+        if (open) {
+            fetchGroups()
+        }
+    }, [open])
 
     const handleToggleGroup = (groupId: string) => {
         setSelectedGroups(prev =>
