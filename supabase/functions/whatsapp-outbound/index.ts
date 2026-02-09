@@ -125,9 +125,59 @@ serve(async (req) => {
                 whatsappPayload.image.caption = caption
             }
         } else if (type === 'audio') {
-            whatsappPayload.type = 'audio'
-            whatsappPayload.audio = {
-                link: media_url
+            // For audio, upload directly to WhatsApp instead of using external URL
+            console.log('Uploading audio to WhatsApp API...')
+
+            try {
+                // 1. Download audio from Supabase Storage
+                const audioResponse = await fetch(media_url)
+                if (!audioResponse.ok) {
+                    throw new Error(`Failed to download audio: ${audioResponse.statusText}`)
+                }
+                const audioBlob = await audioResponse.blob()
+
+                // 2. Upload to WhatsApp Media API
+                const formData = new FormData()
+                formData.append('file', audioBlob, 'audio.ogg')
+                formData.append('messaging_product', 'whatsapp')
+                formData.append('type', 'audio/ogg')
+
+                const uploadResponse = await fetch(
+                    `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/media`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+                        },
+                        body: formData
+                    }
+                )
+
+                if (!uploadResponse.ok) {
+                    const errorData = await uploadResponse.json()
+                    console.error('WhatsApp media upload error:', errorData)
+                    throw new Error(`Media upload failed: ${JSON.stringify(errorData)}`)
+                }
+
+                const uploadData = await uploadResponse.json()
+                const mediaId = uploadData.id
+
+                console.log('Audio uploaded to WhatsApp, media_id:', mediaId)
+
+                // 3. Use media_id instead of link
+                whatsappPayload.type = 'audio'
+                whatsappPayload.audio = {
+                    id: mediaId
+                }
+            } catch (uploadError) {
+                console.error('Error uploading audio to WhatsApp:', uploadError)
+                return new Response(
+                    JSON.stringify({ error: 'Failed to upload audio to WhatsApp', details: uploadError.message }),
+                    {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                        status: 500,
+                    }
+                )
             }
         } else {
             // Default text message
@@ -141,7 +191,9 @@ serve(async (req) => {
 
         // Debug: Log the complete payload
         if (type === 'image' || type === 'audio') {
-            console.log('Media URL:', media_url)
+            if (type === 'image') {
+                console.log('Media URL:', media_url)
+            }
             console.log('WhatsApp Payload:', JSON.stringify(whatsappPayload, null, 2))
         }
 
