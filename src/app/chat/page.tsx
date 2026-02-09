@@ -6,6 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Loader2, Send, Search, Phone, MoreVertical, MessageSquare, ArrowLeft, Bot, User } from 'lucide-react'
 import { LeadAvatar } from '@/components/chat/LeadAvatar'
+import { AudioRecorder } from '@/components/chat/AudioRecorder'
+import { MediaUploadButton } from '@/components/chat/MediaUploadButton'
+import { TemplateSelector } from '@/components/chat/TemplateSelector'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -19,6 +22,8 @@ export default function ChatPage() {
         loadingLeads,
         loadingMessages,
         sendMessage,
+        sendImageMessage,
+        sendAudioMessage,
         toggleBot
     } = useChat()
 
@@ -262,21 +267,37 @@ export default function ChatPage() {
 
                         {/* Input Area - Sticky at bottom */}
                         <div className="flex-shrink-0 p-3 md:p-4 border-t bg-card">
-                            <form onSubmit={handleSend} className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    placeholder="Escribe un mensaje..."
-                                    className="flex-1 px-3 py-3 text-base border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                                />
-                                <Button
-                                    type="submit"
-                                    disabled={!input.trim()}
-                                    className="w-12 h-12 flex-shrink-0 p-0"
-                                >
-                                    <Send className="h-5 w-5" />
-                                </Button>
+                            <form onSubmit={handleSend} className="flex flex-col gap-2">
+                                {/* Multimedia buttons row */}
+                                <div className="flex items-center gap-2">
+                                    <MediaUploadButton
+                                        onImageSelect={(file, caption) => sendImageMessage(file, caption)}
+                                    />
+                                    <AudioRecorder
+                                        onRecordingComplete={(blob) => sendAudioMessage(blob)}
+                                    />
+                                    <TemplateSelector
+                                        onSelect={(content) => setInput(content)}
+                                    />
+                                </div>
+
+                                {/* Text input row */}
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={input}
+                                        onChange={(e) => setInput(e.target.value)}
+                                        placeholder="Escribe un mensaje..."
+                                        className="flex-1 px-3 py-3 text-base border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                    />
+                                    <Button
+                                        type="submit"
+                                        disabled={!input.trim()}
+                                        className="w-12 h-12 flex-shrink-0 p-0"
+                                    >
+                                        <Send className="h-5 w-5" />
+                                    </Button>
+                                </div>
                             </form>
                         </div>
                     </>

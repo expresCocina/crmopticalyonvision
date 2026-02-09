@@ -194,6 +194,126 @@ export function useChat() {
         }
     }
 
+    // 3.1 Send Image with Caption
+    const sendImageMessage = async (imageFile: File, caption?: string) => {
+        if (!activeLeadId) return
+
+        try {
+            toast.loading('Subiendo imagen...')
+
+            // 1. Upload image to Supabase Storage
+            const fileExt = imageFile.name.split('.').pop()
+            const fileName = `${activeLeadId}/${Date.now()}.${fileExt}`
+
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('chat-media')
+                .upload(fileName, imageFile, {
+                    cacheControl: '3600',
+                    upsert: false
+                })
+
+            if (uploadError) {
+                console.error('Upload error:', uploadError)
+                toast.dismiss()
+                toast.error('Error al subir imagen')
+                return
+            }
+
+            // 2. Get public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('chat-media')
+                .getPublicUrl(uploadData.path)
+
+            toast.dismiss()
+            toast.loading('Enviando imagen...')
+
+            // 3. Call Edge Function to send via WhatsApp
+            const { data, error } = await supabase.functions.invoke('whatsapp-outbound', {
+                body: {
+                    lead_id: activeLeadId,
+                    media_url: publicUrl,
+                    caption: caption || '',
+                    type: 'image'
+                }
+            })
+
+            toast.dismiss()
+
+            if (error || !data?.success) {
+                console.error('Error sending image:', error || data)
+                toast.error('Error al enviar imagen')
+                return
+            }
+
+            toast.success('Imagen enviada')
+
+        } catch (err) {
+            console.error('Exception sending image:', err)
+            toast.dismiss()
+            toast.error('Error inesperado al enviar imagen')
+        }
+    }
+
+    // 3.2 Send Audio Message
+    const sendAudioMessage = async (audioBlob: Blob) => {
+        if (!activeLeadId) return
+
+        try {
+            toast.loading('Subiendo audio...')
+
+            // 1. Upload audio to Supabase Storage
+            const fileName = `${activeLeadId}/${Date.now()}.ogg`
+
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('chat-media')
+                .upload(fileName, audioBlob, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: 'audio/ogg; codecs=opus'
+                })
+
+            if (uploadError) {
+                console.error('Upload error:', uploadError)
+                toast.dismiss()
+                toast.error('Error al subir audio')
+                return
+            }
+
+            // 2. Get public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('chat-media')
+                .getPublicUrl(uploadData.path)
+
+            toast.dismiss()
+            toast.loading('Enviando audio...')
+
+            // 3. Call Edge Function to send via WhatsApp
+            const { data, error } = await supabase.functions.invoke('whatsapp-outbound', {
+                body: {
+                    lead_id: activeLeadId,
+                    media_url: publicUrl,
+                    type: 'audio'
+                }
+            })
+
+            toast.dismiss()
+
+            if (error || !data?.success) {
+                console.error('Error sending audio:', error || data)
+                toast.error('Error al enviar audio')
+                return
+            }
+
+            toast.success('Audio enviado')
+
+        } catch (err) {
+            console.error('Exception sending audio:', err)
+            toast.dismiss()
+            toast.error('Error inesperado al enviar audio')
+        }
+    }
+
+
     // 4. Set Active Lead & Mark as Read (Pipeline Move)
     const setActiveLeadId = async (id: string | null) => {
         setActiveLeadIdState(id)
@@ -250,6 +370,8 @@ export function useChat() {
         loadingLeads,
         loadingMessages,
         sendMessage,
+        sendImageMessage,
+        sendAudioMessage,
         toggleBot
     }
 }
