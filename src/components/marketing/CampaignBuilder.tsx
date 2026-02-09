@@ -33,14 +33,33 @@ interface CustomerGroup {
 
 export function CampaignBuilder() {
     const { templates } = useTemplates()
-    const { createCampaign, sendCampaign } = useCampaigns()
+    const { createCampaign, sendCampaign, triggerInstantCampaign } = useCampaigns()
     const [customers, setCustomers] = useState<Lead[]>([])
     const [groups, setGroups] = useState<CustomerGroup[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
-    const supabase = createClient()
+    const [triggering, setTriggering] = useState<string | null>(null)
 
-    // Campaign State
-    const [campaignMode, setCampaignMode] = useState<'legacy' | 'mass'>('mass')
+    const handleTriggerNow = async (campaignId: string) => {
+        setTriggering(campaignId)
+        toast.loading('Iniciando envío inmediato...')
+
+        try {
+            const { success, error } = await triggerInstantCampaign(campaignId)
+
+            if (success) {
+                toast.success('Envío iniciado correctamente')
+            } else {
+                toast.error('Error al iniciar envío')
+                console.error(error)
+            }
+        } catch (err) {
+            console.error(err)
+            toast.error('Error inesperado')
+        } finally {
+            setTriggering(null)
+            toast.dismiss()
+        }
+    }
     const [campaignName, setCampaignName] = useState('')
     const [selectedTemplate, setSelectedTemplate] = useState<string>('none')
     const [message, setMessage] = useState('')
@@ -492,27 +511,29 @@ export function CampaignBuilder() {
                             </Card>
                         )}
 
-                        <Button
-                            className="w-full"
-                            size="lg"
-                            onClick={handleSend}
-                            disabled={
-                                !campaignName.trim() ||
-                                !message.trim() ||
-                                (campaignMode === 'legacy' && filteredCustomers.length === 0) ||
-                                (campaignMode === 'mass' && selectedGroups.length === 0) ||
-                                sending
-                            }
-                        >
-                            {sending ? (
-                                'Procesando...'
-                            ) : (
-                                <>
-                                    <Send className="h-4 w-4 mr-2" />
-                                    {campaignMode === 'mass' ? 'Programar Campaña' : 'Enviar Ahora'}
-                                </>
-                            )}
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                className="flex-1"
+                                size="lg"
+                                onClick={handleSend}
+                                disabled={
+                                    !campaignName.trim() ||
+                                    !message.trim() ||
+                                    (campaignMode === 'legacy' && filteredCustomers.length === 0) ||
+                                    (campaignMode === 'mass' && selectedGroups.length === 0) ||
+                                    sending
+                                }
+                            >
+                                {sending ? (
+                                    'Procesando...'
+                                ) : (
+                                    <>
+                                        <Send className="h-4 w-4 mr-2" />
+                                        {campaignMode === 'mass' ? 'Programar Campaña' : 'Enviar Ahora'}
+                                    </>
+                                )}
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </Tabs>

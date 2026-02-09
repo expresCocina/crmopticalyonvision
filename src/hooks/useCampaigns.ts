@@ -262,6 +262,22 @@ export function useCampaigns() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
+    const triggerInstantCampaign = async (campaignId: string) => {
+        try {
+            const { error } = await supabase.functions.invoke('campaign-scheduler', {
+                body: { campaign_id: campaignId, force: true }
+            })
+
+            if (error) throw error
+
+            await fetchCampaigns()
+            return { success: true }
+        } catch (error) {
+            console.error('Error triggering campaign:', error)
+            return { success: false, error }
+        }
+    }
+
     return {
         campaigns,
         loading,
@@ -270,6 +286,7 @@ export function useCampaigns() {
         sendCampaignWithImage,
         autoAssignGroups,
         getCampaignStats,
+        triggerInstantCampaign,
         refreshCampaigns: fetchCampaigns
     }
 }
