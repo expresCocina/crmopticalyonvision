@@ -29,6 +29,7 @@ export default function ChatPage() {
 
     const [input, setInput] = useState('')
     const [searchTerm, setSearchTerm] = useState('')
+    const [pendingTemplate, setPendingTemplate] = useState<{ name: string, lang: string } | null>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     // Scroll to bottom on new message
@@ -46,8 +47,16 @@ export default function ChatPage() {
     const handleSend = async (e?: React.FormEvent) => {
         e?.preventDefault()
         if (!input.trim()) return
-        await sendMessage(input)
+
+        // Si hay un template pendiente seleccionado y el usuario no lo ha borrado (asumimos que quiere enviar eso)
+        if (pendingTemplate) {
+            await sendMessage(input, pendingTemplate.name, pendingTemplate.lang)
+        } else {
+            await sendMessage(input)
+        }
+
         setInput('')
+        setPendingTemplate(null)
     }
 
     // Mobile: show chat when lead selected, otherwise show list
@@ -309,7 +318,17 @@ export default function ChatPage() {
                                         onRecordingComplete={(blob) => sendAudioMessage(blob)}
                                     />
                                     <TemplateSelector
-                                        onSelect={(content) => setInput(content)}
+                                        onSelect={(content, templateInfo) => {
+                                            setInput(content)
+                                            if (templateInfo?.whatsapp_name) {
+                                                setPendingTemplate({
+                                                    name: templateInfo.whatsapp_name,
+                                                    lang: templateInfo.whatsapp_language || 'es'
+                                                })
+                                            } else {
+                                                setPendingTemplate(null)
+                                            }
+                                        }}
                                         leadName={activeLead?.full_name || undefined}
                                     />
                                 </div>
@@ -319,7 +338,11 @@ export default function ChatPage() {
                                     <input
                                         type="text"
                                         value={input}
-                                        onChange={(e) => setInput(e.target.value)}
+                                        onChange={(e) => {
+                                            setInput(e.target.value)
+                                            // Si el usuario edita, limpiamos el template oficial para evitar enviar contenido incorrecto
+                                            setPendingTemplate(null)
+                                        }}
                                         placeholder="Escribe un mensaje..."
                                         className="flex-1 px-3 py-3 text-base border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                                     />

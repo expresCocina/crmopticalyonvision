@@ -160,16 +160,26 @@ export function useChat() {
     }, [activeLeadId, supabase])
 
     // 3. Send Message Function
-    const sendMessage = async (content: string) => {
+    const sendMessage = async (content: string, whatsappTemplateName?: string, whatsappTemplateLang?: string) => {
         if (!activeLeadId || !content.trim()) return
 
         try {
+            // Payload básico
+            const payload: any = {
+                lead_id: activeLeadId,
+                message: content
+            }
+
+            // Si es template oficial, agregamos los campos
+            if (whatsappTemplateName) {
+                payload.type = 'template'
+                payload.template_name = whatsappTemplateName
+                payload.template_lang = whatsappTemplateLang || 'es'
+            }
+
             // Call the whatsapp-outbound Edge Function to send the message
             const { data, error } = await supabase.functions.invoke('whatsapp-outbound', {
-                body: {
-                    lead_id: activeLeadId,
-                    message: content
-                }
+                body: payload
             })
 
             if (error) {
@@ -185,8 +195,6 @@ export function useChat() {
             }
 
             // Success - the Edge Function handles database insert and WhatsApp API call
-
-
 
         } catch (err) {
             console.error('Exception sending message:', err)

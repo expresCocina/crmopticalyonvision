@@ -13,7 +13,7 @@ import { FileText } from 'lucide-react'
 import { useMessageTemplates } from '@/hooks/useMessageTemplates'
 
 interface TemplateSelectorProps {
-    onSelect: (content: string) => void
+    onSelect: (content: string, templateInfo?: { whatsapp_name?: string, whatsapp_language?: string }) => void
     disabled?: boolean
     leadName?: string // Nombre del cliente activo
 }
@@ -43,7 +43,10 @@ export function TemplateSelector({ onSelect, disabled, leadName }: TemplateSelec
         const template = templates.find(t => t.id === templateId)
         if (template) {
             const processedContent = replaceVariables(template.content)
-            onSelect(processedContent)
+            onSelect(processedContent, {
+                whatsapp_name: template.whatsapp_name || undefined,
+                whatsapp_language: template.whatsapp_language
+            })
         }
     }
 
