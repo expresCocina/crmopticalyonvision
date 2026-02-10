@@ -152,6 +152,9 @@ export function useChat() {
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `lead_id=eq.${activeLeadId}` }, (payload) => {
                 setMessages(prev => [...prev, payload.new as Message])
             })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `lead_id=eq.${activeLeadId}` }, (payload) => {
+                setMessages(prev => prev.map(msg => msg.id === payload.new.id ? payload.new as Message : msg))
+            })
             .subscribe()
 
         return () => {
