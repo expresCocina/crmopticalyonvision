@@ -145,7 +145,7 @@ export default function ChatPage() {
                                             )}
                                         </div>
                                         {/* Tags */}
-                                        <LeadTagsDisplay leadId={lead.id} />
+                                        <LeadTagsDisplay key={`tags-${lead.id}`} leadId={lead.id} />
                                     </div>
                                 </button>
                             ))}
