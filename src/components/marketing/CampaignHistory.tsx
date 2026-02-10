@@ -77,35 +77,56 @@ export function CampaignHistory() {
 
                                     {/* Stats */}
                                     {campaignStats && (
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                            <div className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
-                                                <Users className="h-4 w-4 text-blue-600 mb-1" />
-                                                <span className="text-2xl font-bold text-blue-600">
-                                                    {campaignStats.total}
-                                                </span>
-                                                <span className="text-xs text-blue-600">Total</span>
+                                        <div className="space-y-3">
+                                            <p className="text-sm font-medium text-muted-foreground">Resultados de la campaña:</p>
+                                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                                <div className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
+                                                    <Users className="h-4 w-4 text-blue-600 mb-1" />
+                                                    <span className="text-2xl font-bold text-blue-600">
+                                                        {campaignStats.total}
+                                                    </span>
+                                                    <span className="text-xs text-blue-600 text-center">Total enviados</span>
+                                                </div>
+                                                <div className="flex flex-col items-center p-3 bg-green-50 rounded-lg">
+                                                    <Send className="h-4 w-4 text-green-600 mb-1" />
+                                                    <span className="text-2xl font-bold text-green-600">
+                                                        {campaignStats.sent}
+                                                    </span>
+                                                    <span className="text-xs text-green-600 text-center">En proceso ✓</span>
+                                                </div>
+                                                <div className="flex flex-col items-center p-3 bg-purple-50 rounded-lg">
+                                                    <TrendingUp className="h-4 w-4 text-purple-600 mb-1" />
+                                                    <span className="text-2xl font-bold text-purple-600">
+                                                        {campaignStats.delivered}
+                                                    </span>
+                                                    <span className="text-xs text-purple-600 text-center">Entregados ✓✓</span>
+                                                </div>
+                                                <div className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
+                                                    <TrendingUp className="h-4 w-4 text-orange-600 mb-1" />
+                                                    <span className="text-2xl font-bold text-orange-600">
+                                                        {campaignStats.read}
+                                                    </span>
+                                                    <span className="text-xs text-orange-600 text-center">Leídos ✓✓</span>
+                                                </div>
+                                                <div className="flex flex-col items-center p-3 bg-red-50 rounded-lg">
+                                                    <span className="text-xl mb-1">❌</span>
+                                                    <span className="text-2xl font-bold text-red-600">
+                                                        {campaignStats.failed}
+                                                    </span>
+                                                    <span className="text-xs text-red-600 text-center">Fallidos</span>
+                                                </div>
                                             </div>
-                                            <div className="flex flex-col items-center p-3 bg-green-50 rounded-lg">
-                                                <Send className="h-4 w-4 text-green-600 mb-1" />
-                                                <span className="text-2xl font-bold text-green-600">
-                                                    {campaignStats.sent}
-                                                </span>
-                                                <span className="text-xs text-green-600">Enviados</span>
-                                            </div>
-                                            <div className="flex flex-col items-center p-3 bg-purple-50 rounded-lg">
-                                                <TrendingUp className="h-4 w-4 text-purple-600 mb-1" />
-                                                <span className="text-2xl font-bold text-purple-600">
-                                                    {campaignStats.delivered}
-                                                </span>
-                                                <span className="text-xs text-purple-600">Entregados</span>
-                                            </div>
-                                            <div className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
-                                                <TrendingUp className="h-4 w-4 text-orange-600 mb-1" />
-                                                <span className="text-2xl font-bold text-orange-600">
-                                                    {campaignStats.read}
-                                                </span>
-                                                <span className="text-xs text-orange-600">Leídos</span>
-                                            </div>
+
+                                            {/* Percentage breakdown */}
+                                            {campaignStats.total > 0 && (
+                                                <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
+                                                    <p>📊 <strong>Tasa de entrega:</strong> {Math.round((campaignStats.delivered / campaignStats.total) * 100)}% llegaron al celular</p>
+                                                    <p>👁️ <strong>Tasa de lectura:</strong> {Math.round((campaignStats.read / campaignStats.total) * 100)}% abrieron el mensaje</p>
+                                                    {campaignStats.failed > 0 && (
+                                                        <p className="text-red-600">⚠️ <strong>{campaignStats.failed}</strong> mensajes no se pudieron entregar</p>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
