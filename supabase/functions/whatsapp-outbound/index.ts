@@ -315,7 +315,7 @@ serve(async (req) => {
             }
 
             // Add content/media based on type
-            if (type === 'text') {
+            if (type === 'text' || type === 'template') {
                 messageData.content = message
             } else if (type === 'image') {
                 messageData.media_url = media_url

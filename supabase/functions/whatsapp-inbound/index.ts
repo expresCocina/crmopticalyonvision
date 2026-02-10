@@ -192,23 +192,35 @@ serve(async (req) => {
                 }
 
                 // 1. Buscar el mensaje interno
-                const { data: messageRecord } = await supabase
+                console.log(`Looking for message with wa_message_id: ${wa_message_id}`)
+                const { data: messageRecord, error: lookupError } = await supabase
                     .from('messages')
-                    .select('id')
+                    .select('id, wa_message_id, status')
                     .eq('wa_message_id', wa_message_id)
                     .single()
 
+                if (lookupError) {
+                    console.error(`Error looking up message: ${lookupError.message}`, lookupError)
+                }
+
                 if (messageRecord) {
                     const messageId = messageRecord.id
+                    console.log(`Found message ${messageId}, current status: ${messageRecord.status}, updating to: ${newStatus}`)
 
                     // 2. Actualizar tabla messages
-                    await supabase
+                    const { error: updateError } = await supabase
                         .from('messages')
                         .update({
-                            status: newStatus,
-                            error_message: errorMessage
+                            status: newStatus
+                            // Note: error_message column will be added in future migration
                         })
                         .eq('id', messageId)
+
+                    if (updateError) {
+                        console.error(`Error updating message status: ${updateError.message}`, updateError)
+                    } else {
+                        console.log(`✅ Successfully updated message ${messageId} to ${newStatus}`)
+                    }
 
                     // 3. Actualizar tabla campaign_sends (si existe)
                     // Esto vinculará automáticamente el estado al historial de campaña
@@ -221,7 +233,15 @@ serve(async (req) => {
 
                     console.log(`Updated status for message ${messageId} to ${newStatus}`)
                 } else {
-                    console.warn(`Message with wa_id ${wa_message_id} not found for status update ${newStatus}`)
+                    console.warn(`❌ Message with wa_id ${wa_message_id} not found for status update ${newStatus}`)
+                    // Log all recent outbound messages to help debug
+                    const { data: recentMessages } = await supabase
+                        .from('messages')
+                        .select('id, wa_message_id, status')
+                        .eq('direction', 'outbound')
+                        .order('created_at', { ascending: false })
+                        .limit(5)
+                    console.log('Recent outbound messages:', JSON.stringify(recentMessages, null, 2))
                 }
             }
             return new Response('OK', { status: 200 })
