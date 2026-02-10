@@ -177,6 +177,56 @@ serve(async (req) => {
         const entry = body.entry?.[0]
         const change = entry?.changes?.[0]
         const value = change?.value
+
+        // ========== PROCESAMIENTO DE ESTADOS (DELIVERED, READ) ==========
+        if (value?.statuses && value.statuses.length > 0) {
+            console.log('Processing statuses:', JSON.stringify(value.statuses))
+            for (const statusUpdate of value.statuses) {
+                const wa_message_id = statusUpdate.id
+                const newStatus = statusUpdate.status // 'sent', 'delivered', 'read', 'failed'
+                let errorMessage = null
+
+                if (newStatus === 'failed') {
+                    errorMessage = JSON.stringify(statusUpdate.errors || {})
+                    console.error(`Message failed: ${wa_message_id}`, errorMessage)
+                }
+
+                // 1. Buscar el mensaje interno
+                const { data: messageRecord } = await supabase
+                    .from('messages')
+                    .select('id')
+                    .eq('wa_message_id', wa_message_id)
+                    .single()
+
+                if (messageRecord) {
+                    const messageId = messageRecord.id
+
+                    // 2. Actualizar tabla messages
+                    await supabase
+                        .from('messages')
+                        .update({
+                            status: newStatus,
+                            error_message: errorMessage
+                        })
+                        .eq('id', messageId)
+
+                    // 3. Actualizar tabla campaign_sends (si existe)
+                    // Esto vinculará automáticamente el estado al historial de campaña
+                    const { error: campaignError } = await supabase
+                        .from('campaign_sends')
+                        .update({ status: newStatus })
+                        .eq('message_id', messageId)
+
+                    if (campaignError) console.error('Error updating campaign_sends:', campaignError)
+
+                    console.log(`Updated status for message ${messageId} to ${newStatus}`)
+                } else {
+                    console.warn(`Message with wa_id ${wa_message_id} not found for status update ${newStatus}`)
+                }
+            }
+            return new Response('OK', { status: 200 })
+        }
+
         if (!value?.messages) return new Response('OK', { status: 200 })
 
         const message = value.messages[0]
