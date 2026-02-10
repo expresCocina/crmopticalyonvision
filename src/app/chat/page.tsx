@@ -295,7 +295,12 @@ export default function ChatPage() {
                                                 )}>
                                                     {format(parseISO(msg.created_at), 'HH:mm')}
                                                     {isOutbound && (
-                                                        <span className="ml-1">{msg.status === 'read' ? '✓✓' : '✓'}</span>
+                                                        <span className={cn(
+                                                            "ml-1 font-bold",
+                                                            msg.status === 'read' ? "text-blue-300" : "opacity-70"
+                                                        )}>
+                                                            {msg.status === 'sent' ? '✓' : '✓✓'}
+                                                        </span>
                                                     )}
                                                 </span>
                                             </div>
