@@ -9,6 +9,10 @@ import { LeadAvatar } from '@/components/chat/LeadAvatar'
 import { AudioRecorder } from '@/components/chat/AudioRecorder'
 import { MediaUploadButton } from '@/components/chat/MediaUploadButton'
 import { TemplateSelector } from '@/components/chat/TemplateSelector'
+import LeadTagManager from '@/components/chat/LeadTagManager'
+import { useLeadTags } from '@/hooks/useLeadTags'
+import LeadTag from '@/components/chat/LeadTag'
+import LeadTagsDisplay from '@/components/chat/LeadTagsDisplay'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -140,6 +144,8 @@ export default function ChatPage() {
                                                 </span>
                                             )}
                                         </div>
+                                        {/* Tags */}
+                                        <LeadTagsDisplay leadId={lead.id} />
                                     </div>
                                 </button>
                             ))}
@@ -191,11 +197,15 @@ export default function ChatPage() {
                                             )}
                                         </span>
                                     </div>
-                                    <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
-                                        <Phone className="h-3 w-3 flex-shrink-0" />
-                                        <span className="truncate">{activeLead.wa_id}</span>
-                                        <span className="ml-2 px-1.5 py-0.5 rounded-full bg-secondary text-[10px] flex-shrink-0">{activeLead.status}</span>
-                                    </p>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <Phone className="h-3 w-3 flex-shrink-0" />
+                                            <span>{activeLead.wa_id}</span>
+                                            <span className="ml-2 px-1.5 py-0.5 rounded-full bg-secondary text-[10px] flex-shrink-0">{activeLead.status}</span>
+                                        </p>
+                                        {/* Tags */}
+                                        <LeadTagManager leadId={activeLead.id} compact />
+                                    </div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
