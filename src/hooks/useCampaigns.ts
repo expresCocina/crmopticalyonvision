@@ -122,8 +122,15 @@ export function useCampaigns() {
             if (updateError) throw updateError
 
             // Send via WhatsApp
-            for (const leadId of leadIds) {
-                const payload: any = { lead_id: leadId, message }
+            for (let i = 0; i < leadIds.length; i++) {
+                const leadId = leadIds[i]
+                const messageId = insertedMessages[i].id
+
+                const payload: any = {
+                    lead_id: leadId,
+                    message,
+                    message_id: messageId  // Pass the message_id so whatsapp-outbound updates it
+                }
 
                 if (whatsappTemplateName) {
                     payload.type = 'template'
