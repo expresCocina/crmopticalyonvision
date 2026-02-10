@@ -135,7 +135,8 @@ export function CampaignBuilder() {
             const template = templates.find(t => t.id === templateId)
             if (template) {
                 setMessage(template.content)
-                if (template.is_official && template.whatsapp_name) {
+                // Usamos la presencia de whatsapp_name como fuente de verdad, por si is_official no se guardó correctamente
+                if (template.whatsapp_name && template.whatsapp_name.trim()) {
                     setWhatsappTemplateName(template.whatsapp_name)
                     setWhatsappTemplateLang(template.whatsapp_language || 'es')
                     setIsOfficialTemplate(true)
@@ -387,7 +388,7 @@ export function CampaignBuilder() {
                                                 <SelectItem value="none">Sin plantilla</SelectItem>
                                                 {templates.map((template) => (
                                                     <SelectItem key={template.id} value={template.id}>
-                                                        {template.name} {template.is_official ? '(Oficial)' : ''}
+                                                        {template.name} {template.whatsapp_name ? '(Oficial)' : ''}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>

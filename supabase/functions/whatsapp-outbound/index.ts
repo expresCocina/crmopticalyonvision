@@ -139,9 +139,30 @@ serve(async (req) => {
                 name: template_name,
                 language: {
                     code: template_lang || 'es'
-                }
+                },
+                components: []
             }
-            // Templates sin parámetros por ahora para simplicidad y compatibilidad
+
+            // IMPORTANTE: Si la plantilla tiene una cabecera de tipo IMAGEN, necesitamos enviarla.
+            // Asumimos que si hay media_url, es porque la plantilla requiere una imagen en el header.
+            if (media_url) {
+                whatsappPayload.template.components.push({
+                    type: 'header',
+                    parameters: [
+                        {
+                            type: 'image',
+                            image: {
+                                link: media_url
+                            }
+                        }
+                    ]
+                })
+            }
+
+            // Si no hay componentes, eliminamos el array para evitar errores si la API es estricta
+            if (whatsappPayload.template.components.length === 0) {
+                delete whatsappPayload.template.components
+            }
         } else if (type === 'audio') {
             // For audio, upload directly to WhatsApp instead of using external URL
             console.log('Uploading audio to WhatsApp API...')
