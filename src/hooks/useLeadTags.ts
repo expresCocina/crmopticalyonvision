@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 
 export interface LeadTag {
     id: string
@@ -25,6 +25,7 @@ export const PREDEFINED_TAGS = [
 export function useLeadTags(leadId: string | null) {
     const [tags, setTags] = useState<LeadTag[]>([])
     const [loading, setLoading] = useState(false)
+    const supabase = createClient()
 
     // Fetch tags for a specific lead
     const fetchTags = async () => {
