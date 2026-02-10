@@ -88,7 +88,14 @@ export function TemplateManager() {
                             <CardHeader>
                                 <div className="flex items-start justify-between">
                                     <div className="space-y-1 flex-1">
-                                        <CardTitle className="text-lg">{template.name}</CardTitle>
+                                        <div className="flex items-center gap-2">
+                                            <CardTitle className="text-lg">{template.name}</CardTitle>
+                                            {template.is_official && (
+                                                <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-[10px]">
+                                                    Oficial
+                                                </Badge>
+                                            )}
+                                        </div>
                                         <Badge className={getCategoryColor(template.category)}>
                                             {getCategoryLabel(template.category)}
                                         </Badge>

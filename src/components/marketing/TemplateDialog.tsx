@@ -20,7 +20,26 @@ export function TemplateDialog({ open, onOpenChange, template, onSave }: Templat
     const [name, setName] = useState(template?.name || '')
     const [category, setCategory] = useState(template?.category || 'general')
     const [content, setContent] = useState(template?.content || '')
+    const [whatsappName, setWhatsappName] = useState(template?.whatsapp_name || '')
+    const [whatsappLanguage, setWhatsappLanguage] = useState(template?.whatsapp_language || 'es')
     const [saving, setSaving] = useState(false)
+
+    // Update state when template changes
+    useState(() => {
+        if (template) {
+            setName(template.name)
+            setCategory(template.category)
+            setContent(template.content)
+            setWhatsappName(template.whatsapp_name || '')
+            setWhatsappLanguage(template.whatsapp_language || 'es')
+        } else {
+            setName('')
+            setCategory('general')
+            setContent('')
+            setWhatsappName('')
+            setWhatsappLanguage('es')
+        }
+    })
 
     const handleSave = async () => {
         if (!name.trim() || !content.trim()) return
@@ -41,16 +60,23 @@ export function TemplateDialog({ open, onOpenChange, template, onSave }: Templat
             name,
             category,
             content,
-            variables
+            variables,
+            whatsapp_name: whatsappName.trim() || undefined,
+            whatsapp_language: whatsappLanguage,
+            is_official: !!whatsappName.trim()
         })
 
         setSaving(false)
 
         if (result.success) {
-            setName('')
-            setCategory('general')
-            setContent('')
-            onOpenChange(false)
+            if (result.success) {
+                setName('')
+                setCategory('general')
+                setContent('')
+                setWhatsappName('')
+                setWhatsappLanguage('es')
+                onOpenChange(false)
+            }
         }
     }
 
@@ -103,6 +129,34 @@ export function TemplateDialog({ open, onOpenChange, template, onSave }: Templat
                         <p className="text-xs text-muted-foreground">
                             Variables disponibles: {'{nombre}'}, {'{empresa}'}, {'{fecha}'}, {'{hora}'}
                         </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                        <div className="space-y-2">
+                            <Label htmlFor="whatsapp_name">ID Plantilla WhatsApp (Opcional)</Label>
+                            <Input
+                                id="whatsapp_name"
+                                placeholder="Ej: marketing_offer_feb"
+                                value={whatsappName}
+                                onChange={(e) => setWhatsappName(e.target.value)}
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                                Debe coincidir con Meta Business Manager
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="whatsapp_language">Idioma</Label>
+                            <Select value={whatsappLanguage} onValueChange={setWhatsappLanguage}>
+                                <SelectTrigger id="whatsapp_language">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="es">Español (es)</SelectItem>
+                                    <SelectItem value="en">Inglés (en)</SelectItem>
+                                    <SelectItem value="pt">Portugués (pt)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
                     {content && (

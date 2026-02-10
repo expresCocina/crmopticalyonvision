@@ -12,8 +12,10 @@ interface SendMessageRequest {
     wa_id?: string // Optional if lead_id is provided
     media_url?: string // For images and audio
     caption?: string // For image captions
-    type?: 'text' | 'image' | 'audio' // Message type
+    type?: 'text' | 'image' | 'audio' | 'template' // Message type
     message_id?: string // Optional: existing message ID to update
+    template_name?: string
+    template_lang?: string
 }
 
 serve(async (req) => {
@@ -32,7 +34,7 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
 
-        const { lead_id, message, wa_id, media_url, caption, type = 'text', message_id }: SendMessageRequest = await req.json()
+        const { lead_id, message, wa_id, media_url, caption, type = 'text', message_id, template_name, template_lang }: SendMessageRequest = await req.json()
 
         // Validate required fields based on message type
         if (type === 'text' && !message) {
@@ -125,6 +127,21 @@ serve(async (req) => {
             if (caption) {
                 whatsappPayload.image.caption = caption
             }
+        } else if (type === 'template') {
+            if (!template_name) {
+                return new Response(
+                    JSON.stringify({ error: 'Missing required field: template_name for template message' }),
+                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+                )
+            }
+            whatsappPayload.type = 'template'
+            whatsappPayload.template = {
+                name: template_name,
+                language: {
+                    code: template_lang || 'es'
+                }
+            }
+            // Templates sin parámetros por ahora para simplicidad y compatibilidad
         } else if (type === 'audio') {
             // For audio, upload directly to WhatsApp instead of using external URL
             console.log('Uploading audio to WhatsApp API...')

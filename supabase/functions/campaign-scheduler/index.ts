@@ -20,6 +20,8 @@ interface Campaign {
     send_interval_days: number
     last_sent_at: string | null
     is_active: boolean
+    whatsapp_template_name?: string
+    whatsapp_template_lang?: string
 }
 
 interface Lead {
@@ -210,10 +212,21 @@ Deno.serve(async (req) => {
                     const whatsappPayload: any = {
                         lead_id: lead.id,
                         message: personalizedMessage,
-                        message_id: message.id // Pass ID to update existing message
+                        message_id: message.id
                     }
 
-                    if (campaign.media_url) {
+                    if (campaign.whatsapp_template_name) {
+                        whatsappPayload.type = 'template'
+                        whatsappPayload.template_name = campaign.whatsapp_template_name
+                        whatsappPayload.template_lang = campaign.whatsapp_template_lang || 'es'
+                        // For templates, we might not need "message" as text body if it's a pure template, 
+                        // but we might need parameters. For now, assuming parameterless templates or reusing body.
+                        // If template needs variables, we need to pass them.
+                        // But the current implementation replaces variables in "message_template" and stores it as content.
+                        // Official templates use {{1}}, {{2}} etc. calling variables.
+                        // TODO: Map {variable} style to template parameters if needed.
+                        // For now, we'll assume the template content is static or handled simply.
+                    } else if (campaign.media_url) {
                         whatsappPayload.media_url = campaign.media_url
                         whatsappPayload.type = 'image'
                         whatsappPayload.caption = personalizedMessage

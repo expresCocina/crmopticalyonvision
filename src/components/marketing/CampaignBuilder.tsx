@@ -63,6 +63,9 @@ export function CampaignBuilder() {
     const [campaignName, setCampaignName] = useState('')
     const [selectedTemplate, setSelectedTemplate] = useState<string>('none')
     const [message, setMessage] = useState('')
+    const [whatsappTemplateName, setWhatsappTemplateName] = useState<string | null>(null)
+    const [whatsappTemplateLang, setWhatsappTemplateLang] = useState<string | null>(null)
+    const [isOfficialTemplate, setIsOfficialTemplate] = useState(false)
     const [sending, setSending] = useState(false)
 
     // Campaign State
@@ -132,9 +135,21 @@ export function CampaignBuilder() {
             const template = templates.find(t => t.id === templateId)
             if (template) {
                 setMessage(template.content)
+                if (template.is_official && template.whatsapp_name) {
+                    setWhatsappTemplateName(template.whatsapp_name)
+                    setWhatsappTemplateLang(template.whatsapp_language || 'es')
+                    setIsOfficialTemplate(true)
+                } else {
+                    setWhatsappTemplateName(null)
+                    setWhatsappTemplateLang(null)
+                    setIsOfficialTemplate(false)
+                }
             }
         } else {
             setMessage('')
+            setWhatsappTemplateName(null)
+            setWhatsappTemplateLang(null)
+            setIsOfficialTemplate(false)
         }
     }
 
@@ -251,7 +266,9 @@ export function CampaignBuilder() {
                 message_template: message,
                 campaign_type: mediaUrl ? 'image' : 'text',
                 media_url: mediaUrl,
-                is_active: true
+                is_active: true,
+                whatsapp_template_name: whatsappTemplateName,
+                whatsapp_template_lang: whatsappTemplateLang
             }
 
             if (campaignMode === 'mass') {
@@ -269,9 +286,22 @@ export function CampaignBuilder() {
                     // Send immediately
                     const leadIds = filteredCustomers.map(c => c.id)
                     if (mediaUrl) {
-                        await sendCampaignWithImage(campaign.id, leadIds, message, mediaUrl)
+                        await sendCampaignWithImage(
+                            campaign.id,
+                            leadIds,
+                            message,
+                            mediaUrl,
+                            whatsappTemplateName,
+                            whatsappTemplateLang
+                        )
                     } else {
-                        await sendCampaign(campaign.id, leadIds, message)
+                        await sendCampaign(
+                            campaign.id,
+                            leadIds,
+                            message,
+                            whatsappTemplateName,
+                            whatsappTemplateLang
+                        )
                     }
                     toast.success(`Enviado a ${leadIds.length} clientes`)
                 } else {
@@ -290,6 +320,9 @@ export function CampaignBuilder() {
                 setCampaignName('')
                 setSelectedTemplate('none')
                 setMessage('')
+                setWhatsappTemplateName(null)
+                setWhatsappTemplateLang(null)
+                setIsOfficialTemplate(false)
                 setSelectedStatuses([])
                 setSelectedGroups([])
                 removeImage()
@@ -345,19 +378,29 @@ export function CampaignBuilder() {
 
                                 <div className="space-y-2">
                                     <Label htmlFor="template">Plantilla (opcional)</Label>
-                                    <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
-                                        <SelectTrigger id="template">
-                                            <SelectValue placeholder="Seleccionar plantilla..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">Sin plantilla</SelectItem>
-                                            {templates.map((template) => (
-                                                <SelectItem key={template.id} value={template.id}>
-                                                    {template.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <div className="flex items-center gap-2">
+                                        <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
+                                            <SelectTrigger id="template" className="flex-1">
+                                                <SelectValue placeholder="Seleccionar plantilla..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">Sin plantilla</SelectItem>
+                                                {templates.map((template) => (
+                                                    <SelectItem key={template.id} value={template.id}>
+                                                        {template.name} {template.is_official ? '(Oficial)' : ''}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {isOfficialTemplate && (
+                                            <Badge variant="default" className="bg-green-600">Oficial</Badge>
+                                        )}
+                                    </div>
+                                    {isOfficialTemplate && (
+                                        <p className="text-xs text-green-600 font-medium mt-1">
+                                            ✓ Esta plantilla permite iniciar conversaciones fuera de la ventana de 24h.
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2">

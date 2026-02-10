@@ -19,8 +19,10 @@ export interface Campaign {
     send_interval_days?: number
     current_group_index?: number
     target_groups?: string[] | null
-    campaign_type?: 'text' | 'image' | 'image_text'
+    campaign_type?: 'text' | 'image' | 'image_text' | 'template'
     last_sent_at?: string | null
+    whatsapp_template_name?: string | null
+    whatsapp_template_lang?: string | null
 }
 
 export interface CampaignSend {
@@ -73,14 +75,20 @@ export function useCampaigns() {
         return { success: true, data }
     }
 
-    const sendCampaign = async (campaignId: string, leadIds: string[], message: string) => {
+    const sendCampaign = async (
+        campaignId: string,
+        leadIds: string[],
+        message: string,
+        whatsappTemplateName?: string | null,
+        whatsappTemplateLang?: string | null
+    ) => {
         try {
             // Insert messages for each lead
             const messages = leadIds.map(leadId => ({
                 lead_id: leadId,
                 content: message,
                 direction: 'outbound' as const,
-                type: 'text',
+                type: whatsappTemplateName ? 'template' : 'text',
                 status: 'sent' as const
             }))
 
@@ -115,8 +123,16 @@ export function useCampaigns() {
 
             // Send via WhatsApp
             for (const leadId of leadIds) {
+                const payload: any = { lead_id: leadId, message }
+
+                if (whatsappTemplateName) {
+                    payload.type = 'template'
+                    payload.template_name = whatsappTemplateName
+                    payload.template_lang = whatsappTemplateLang || 'es'
+                }
+
                 await supabase.functions.invoke('whatsapp-outbound', {
-                    body: { lead_id: leadId, message }
+                    body: payload
                 })
             }
 
@@ -132,7 +148,9 @@ export function useCampaigns() {
         campaignId: string,
         leadIds: string[],
         message: string,
-        mediaUrl: string
+        mediaUrl: string,
+        whatsappTemplateName?: string | null,
+        whatsappTemplateLang?: string | null
     ) => {
         try {
             // Insert messages for each lead with image
@@ -140,7 +158,7 @@ export function useCampaigns() {
                 lead_id: leadId,
                 content: message,
                 direction: 'outbound' as const,
-                type: 'image',
+                type: whatsappTemplateName ? 'template' : 'image', // Templates can handle media too, but usually different structure
                 media_url: mediaUrl,
                 status: 'sent' as const
             }))
@@ -179,15 +197,22 @@ export function useCampaigns() {
                 const leadId = leadIds[i]
                 const messageId = insertedMessages[i].id
 
+                const payload: any = {
+                    lead_id: leadId,
+                    message,
+                    media_url: mediaUrl,
+                    type: whatsappTemplateName ? 'template' : 'image',
+                    caption: message,
+                    message_id: messageId
+                }
+
+                if (whatsappTemplateName) {
+                    payload.template_name = whatsappTemplateName
+                    payload.template_lang = whatsappTemplateLang || 'es'
+                }
+
                 await supabase.functions.invoke('whatsapp-outbound', {
-                    body: {
-                        lead_id: leadId,
-                        message,
-                        media_url: mediaUrl,
-                        type: 'image',
-                        caption: message,
-                        message_id: messageId // Pass ID to avoid duplication
-                    }
+                    body: payload
                 })
             }
 
