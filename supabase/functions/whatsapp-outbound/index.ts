@@ -290,8 +290,11 @@ serve(async (req) => {
         // Save or update outbound message
         let dbMessageId = message_id
 
+        console.log('📝 Saving message to DB - message_id:', message_id, 'wa_message_id:', wa_message_id)
+
         if (message_id) {
             // Update existing message
+            console.log('🔄 Updating existing message:', message_id)
             const { error: updateError } = await supabase
                 .from('messages')
                 .update({
@@ -301,7 +304,9 @@ serve(async (req) => {
                 .eq('id', message_id)
 
             if (updateError) {
-                console.error('Error updating message:', updateError)
+                console.error('❌ Error updating message:', updateError)
+            } else {
+                console.log('✅ Successfully updated message with wa_message_id')
             }
         } else {
             // Insert new message
