@@ -9,6 +9,9 @@ export interface MessageTemplate {
     name: string
     content: string
     category: string | null
+    whatsapp_name?: string
+    whatsapp_language?: string
+    is_official?: boolean
     created_at: string
     updated_at: string
 }
