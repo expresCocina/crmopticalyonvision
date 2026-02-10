@@ -223,13 +223,20 @@ serve(async (req) => {
                     }
 
                     // 3. Actualizar tabla campaign_sends (si existe)
-                    // Esto vinculará automáticamente el estado al historial de campaña
-                    const { error: campaignError } = await supabase
+                    console.log(`Checking for campaign_sends record with message_id: ${messageId}`)
+                    const { data: campaignSend, error: campaignError } = await supabase
                         .from('campaign_sends')
                         .update({ status: newStatus })
                         .eq('message_id', messageId)
+                        .select()
 
-                    if (campaignError) console.error('Error updating campaign_sends:', campaignError)
+                    if (campaignError) {
+                        console.error('Error updating campaign_sends:', campaignError)
+                    } else if (campaignSend && campaignSend.length > 0) {
+                        console.log(`✅ Successfully updated campaign_sends for message ${messageId}:`, campaignSend)
+                    } else {
+                        console.log(`ℹ️ No campaign_sends record found for message ${messageId} (this is normal for non-campaign messages)`)
+                    }
 
                     console.log(`Updated status for message ${messageId} to ${newStatus}`)
                 } else {
