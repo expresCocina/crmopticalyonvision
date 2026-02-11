@@ -148,15 +148,25 @@ export default function ChatPage() {
     // Acción en lote: archivar/desarchivar
     const bulkArchive = async (archive: boolean) => {
         const supabase = createClient()
-        try {
-            const { error } = await supabase
-                .from('leads')
-                .update({ archived: archive })
-                .in('id', Array.from(selectedLeads))
+        const leadIds = Array.from(selectedLeads)
 
-            if (error) {
-                console.error('Error bulk archiving:', error)
-                toast.error('Error al archivar')
+        try {
+            // Actualizar cada lead individualmente
+            const updates = leadIds.map(leadId =>
+                supabase
+                    .from('leads')
+                    .update({ archived: archive })
+                    .eq('id', leadId)
+            )
+
+            const results = await Promise.all(updates)
+
+            // Verificar si hubo errores
+            const errors = results.filter(r => r.error)
+
+            if (errors.length > 0) {
+                console.error('Error bulk archiving:', errors)
+                toast.error(`Error al archivar ${errors.length} conversación(es)`)
             } else {
                 toast.success(`${selectedLeads.size} conversación(es) ${archive ? 'archivada(s)' : 'desarchivada(s)'}`)
                 clearSelection()
