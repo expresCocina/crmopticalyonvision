@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useChat } from '@/hooks/useChat'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Loader2, Send, Search, Phone, MoreVertical, MessageSquare, ArrowLeft, Bot, User } from 'lucide-react'
+import { Loader2, Send, Search, Phone, MoreVertical, MessageSquare, ArrowLeft, Bot, User, Check, CheckCheck, Archive } from 'lucide-react'
 import { LeadAvatar } from '@/components/chat/LeadAvatar'
 import { AudioRecorder } from '@/components/chat/AudioRecorder'
 import { MediaUploadButton } from '@/components/chat/MediaUploadButton'
@@ -18,6 +18,14 @@ import { ChatFilters, ChatFilterState } from '@/components/chat/ChatFilters'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 export default function ChatPage() {
     const {
@@ -66,6 +74,27 @@ export default function ChatPage() {
 
         return true
     })
+
+    // Función para marcar como leído/no leído
+    const markAsRead = async (leadId: string, newCount: number) => {
+        const supabase = createClient()
+        try {
+            const { error } = await supabase
+                .from('leads')
+                .update({ unread_count: newCount })
+                .eq('id', leadId)
+
+            if (error) {
+                console.error('Error updating unread count:', error)
+                toast.error('Error al actualizar')
+            } else {
+                toast.success(newCount === 0 ? 'Marcado como leído' : 'Marcado como no leído')
+            }
+        } catch (err) {
+            console.error('Exception updating unread count:', err)
+            toast.error('Error inesperado')
+        }
+    }
 
     const handleSend = async (e?: React.FormEvent) => {
         e?.preventDefault()
@@ -117,11 +146,10 @@ export default function ChatPage() {
                     ) : (
                         <div className="divide-y">
                             {filteredLeads.map(lead => (
-                                <button
+                                <div
                                     key={lead.id}
-                                    onClick={() => setActiveLeadId(lead.id)}
                                     className={cn(
-                                        "w-full text-left p-3 hover:bg-accent/50 transition-colors flex gap-3 relative",
+                                        "w-full text-left p-3 hover:bg-accent/50 transition-colors flex gap-3 relative group",
                                         activeLeadId === lead.id && "bg-accent/70"
                                     )}
                                 >
@@ -130,45 +158,83 @@ export default function ChatPage() {
                                         <span className="absolute left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-green-500 shadow-sm animate-pulse" />
                                     )}
 
-                                    <LeadAvatar
-                                        fullName={lead.full_name || undefined}
-                                        waId={lead.wa_id}
-                                        active={activeLeadId === lead.id}
-                                        size="md"
-                                    />
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-baseline mb-1">
-                                            <span className={cn(
-                                                "truncate text-sm",
-                                                lead.unread_count > 0 ? "font-bold text-foreground" : "font-medium"
-                                            )}>
-                                                {lead.full_name || lead.wa_id}
-                                            </span>
-                                            <span className={cn(
-                                                "text-[10px] flex-shrink-0 ml-2",
-                                                lead.unread_count > 0 ? "text-green-600 font-bold" : "text-muted-foreground"
-                                            )}>
-                                                {lead.last_interaction && format(parseISO(lead.last_interaction), 'HH:mm')}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-center gap-2">
-                                            <LastMessagePreview
-                                                leadId={lead.id}
-                                                className={cn(
-                                                    "text-xs truncate flex-1",
-                                                    lead.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"
-                                                )}
-                                            />
-                                            {lead.unread_count > 0 && (
-                                                <span className="ml-2 bg-green-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold min-w-[18px] text-center">
-                                                    {lead.unread_count}
+                                    {/* Main clickable area */}
+                                    <button
+                                        onClick={() => setActiveLeadId(lead.id)}
+                                        className="flex gap-3 flex-1 min-w-0"
+                                    >
+                                        <LeadAvatar
+                                            fullName={lead.full_name || undefined}
+                                            waId={lead.wa_id}
+                                            active={activeLeadId === lead.id}
+                                            size="md"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-baseline mb-1">
+                                                <span className={cn(
+                                                    "truncate text-sm",
+                                                    lead.unread_count > 0 ? "font-bold text-foreground" : "font-medium"
+                                                )}>
+                                                    {lead.full_name || lead.wa_id}
                                                 </span>
-                                            )}
+                                                <span className={cn(
+                                                    "text-[10px] flex-shrink-0 ml-2",
+                                                    lead.unread_count > 0 ? "text-green-600 font-bold" : "text-muted-foreground"
+                                                )}>
+                                                    {lead.last_interaction && format(parseISO(lead.last_interaction), 'HH:mm')}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between items-center gap-2">
+                                                <LastMessagePreview
+                                                    leadId={lead.id}
+                                                    className={cn(
+                                                        "text-xs truncate flex-1",
+                                                        lead.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                                                    )}
+                                                />
+                                                {lead.unread_count > 0 && (
+                                                    <span className="ml-2 bg-green-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold min-w-[18px] text-center">
+                                                        {lead.unread_count}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {/* Tags */}
+                                            <LeadTagsDisplay key={`tags-${lead.id}`} leadId={lead.id} />
                                         </div>
-                                        {/* Tags */}
-                                        <LeadTagsDisplay key={`tags-${lead.id}`} leadId={lead.id} />
-                                    </div>
-                                </button>
+                                    </button>
+
+                                    {/* Context Menu */}
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-accent rounded transition-opacity">
+                                                <MoreVertical className="h-4 w-4" />
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem
+                                                onClick={async (e) => {
+                                                    e.stopPropagation()
+                                                    await markAsRead(lead.id, lead.unread_count > 0 ? 0 : 1)
+                                                }}
+                                            >
+                                                {lead.unread_count > 0 ? (
+                                                    <><CheckCheck className="mr-2 h-4 w-4" /> Marcar como leído</>
+                                                ) : (
+                                                    <><Check className="mr-2 h-4 w-4" /> Marcar como no leído</>
+                                                )}
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    // TODO: Implement archive
+                                                    console.log('Archive:', lead.id)
+                                                }}
+                                            >
+                                                <Archive className="mr-2 h-4 w-4" /> Archivar
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
                             ))}
                         </div>
                     )}
