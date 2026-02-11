@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useChat } from '@/hooks/useChat'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Loader2, Send, Search, Phone, MoreVertical, MessageSquare, ArrowLeft, Bot, User, Check, CheckCheck, Archive } from 'lucide-react'
+import { Loader2, Send, Search, Phone, MoreVertical, MessageSquare, ArrowLeft, Bot, User, Check, CheckCheck, Archive, X } from 'lucide-react'
 import { LeadAvatar } from '@/components/chat/LeadAvatar'
 import { AudioRecorder } from '@/components/chat/AudioRecorder'
 import { MediaUploadButton } from '@/components/chat/MediaUploadButton'
@@ -46,6 +46,8 @@ export default function ChatPage() {
     const [pendingTemplate, setPendingTemplate] = useState<{ name: string, lang: string } | null>(null)
     const [filters, setFilters] = useState<ChatFilterState>({ showUnreadOnly: false, selectedTags: [] })
     const [showArchived, setShowArchived] = useState(false)
+    const [selectionMode, setSelectionMode] = useState(false)
+    const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set())
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     // Scroll to bottom on new message
@@ -122,6 +124,49 @@ export default function ChatPage() {
         }
     }
 
+    // Funciones de selección múltiple
+    const toggleSelection = (leadId: string) => {
+        const newSelection = new Set(selectedLeads)
+        if (newSelection.has(leadId)) {
+            newSelection.delete(leadId)
+        } else {
+            newSelection.add(leadId)
+        }
+        setSelectedLeads(newSelection)
+    }
+
+    const selectAll = () => {
+        const allLeadIds = new Set(filteredLeads.map(l => l.id))
+        setSelectedLeads(allLeadIds)
+    }
+
+    const clearSelection = () => {
+        setSelectedLeads(new Set())
+        setSelectionMode(false)
+    }
+
+    // Acción en lote: archivar/desarchivar
+    const bulkArchive = async (archive: boolean) => {
+        const supabase = createClient()
+        try {
+            const { error } = await supabase
+                .from('leads')
+                .update({ archived: archive })
+                .in('id', Array.from(selectedLeads))
+
+            if (error) {
+                console.error('Error bulk archiving:', error)
+                toast.error('Error al archivar')
+            } else {
+                toast.success(`${selectedLeads.size} conversación(es) ${archive ? 'archivada(s)' : 'desarchivada(s)'}`)
+                clearSelection()
+            }
+        } catch (err) {
+            console.error('Exception bulk archiving:', err)
+            toast.error('Error inesperado')
+        }
+    }
+
     const handleSend = async (e?: React.FormEvent) => {
         e?.preventDefault()
         if (!input.trim()) return
@@ -182,6 +227,41 @@ export default function ChatPage() {
                     </Button>
                 </div>
 
+                {/* Botón para activar modo de selección */}
+                {!selectionMode ? (
+                    <div className="px-2 py-1 border-b">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectionMode(true)}
+                            className="w-full justify-start text-xs"
+                        >
+                            <Check className="mr-2 h-3 w-3" />
+                            Seleccionar
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="px-2 py-2 border-b bg-accent/30 flex gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={selectAll}
+                            className="flex-1 text-xs h-8"
+                        >
+                            Todos ({filteredLeads.length})
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={clearSelection}
+                            className="flex-1 text-xs h-8"
+                        >
+                            <X className="mr-1 h-3 w-3" />
+                            Cancelar
+                        </Button>
+                    </div>
+                )}
+
                 <div className="flex-1 overflow-y-auto scroll-smooth-ios scrollbar-hide">
                     {loadingLeads ? (
                         <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
@@ -198,13 +278,26 @@ export default function ChatPage() {
                                     )}
                                 >
                                     {/* Unread/New Indicator */}
-                                    {lead.unread_count > 0 && (
+                                    {!selectionMode && lead.unread_count > 0 && (
                                         <span className="absolute left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-green-500 shadow-sm animate-pulse" />
+                                    )}
+
+                                    {/* Checkbox para selección múltiple */}
+                                    {selectionMode && (
+                                        <div className="flex items-center pl-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedLeads.has(lead.id)}
+                                                onChange={() => toggleSelection(lead.id)}
+                                                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                        </div>
                                     )}
 
                                     {/* Main clickable area */}
                                     <button
-                                        onClick={() => setActiveLeadId(lead.id)}
+                                        onClick={() => !selectionMode && setActiveLeadId(lead.id)}
                                         className="flex gap-3 flex-1 min-w-0"
                                     >
                                         <LeadAvatar
@@ -247,41 +340,63 @@ export default function ChatPage() {
                                         </div>
                                     </button>
 
-                                    {/* Context Menu */}
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-accent rounded transition-opacity">
-                                                <MoreVertical className="h-4 w-4" />
-                                            </button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem
-                                                onClick={async (e) => {
-                                                    e.stopPropagation()
-                                                    await markAsRead(lead.id, lead.unread_count > 0 ? 0 : 1)
-                                                }}
-                                            >
-                                                {lead.unread_count > 0 ? (
-                                                    <><CheckCheck className="mr-2 h-4 w-4" /> Marcar como leído</>
-                                                ) : (
-                                                    <><Check className="mr-2 h-4 w-4" /> Marcar como no leído</>
-                                                )}
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                onClick={async (e) => {
-                                                    e.stopPropagation()
-                                                    await toggleArchive(lead.id, lead.archived)
-                                                }}
-                                            >
-                                                <Archive className="mr-2 h-4 w-4" /> {lead.archived ? 'Desarchivar' : 'Archivar'}
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    {/* Context Menu - Solo visible si NO está en modo selección */}
+                                    {!selectionMode && (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-accent rounded transition-opacity">
+                                                    <MoreVertical className="h-4 w-4" />
+                                                </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation()
+                                                        await markAsRead(lead.id, lead.unread_count > 0 ? 0 : 1)
+                                                    }}
+                                                >
+                                                    {lead.unread_count > 0 ? (
+                                                        <><CheckCheck className="mr-2 h-4 w-4" /> Marcar como leído</>
+                                                    ) : (
+                                                        <><Check className="mr-2 h-4 w-4" /> Marcar como no leído</>
+                                                    )}
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation()
+                                                        await toggleArchive(lead.id, lead.archived)
+                                                    }}
+                                                >
+                                                    <Archive className="mr-2 h-4 w-4" /> {lead.archived ? 'Desarchivar' : 'Archivar'}
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
+
+                {/* Barra flotante de acciones en lote */}
+                {selectionMode && selectedLeads.size > 0 && (
+                    <div className="p-3 border-t bg-background shadow-lg">
+                        <div className="text-xs text-muted-foreground mb-2 text-center">
+                            {selectedLeads.size} seleccionado(s)
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => bulkArchive(!showArchived)}
+                                className="flex-1"
+                            >
+                                <Archive className="mr-2 h-4 w-4" />
+                                {showArchived ? 'Desarchivar' : 'Archivar'}
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Main Chat Area - Full screen on mobile when active */}
