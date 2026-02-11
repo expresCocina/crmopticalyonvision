@@ -28,6 +28,7 @@ export interface Lead {
     bot_active: boolean;
     unread_count: number;
     last_interaction: string;
+    archived: boolean;
     created_at: string;
     updated_at: string;
 }

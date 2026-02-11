@@ -45,6 +45,7 @@ export default function ChatPage() {
     const [searchTerm, setSearchTerm] = useState('')
     const [pendingTemplate, setPendingTemplate] = useState<{ name: string, lang: string } | null>(null)
     const [filters, setFilters] = useState<ChatFilterState>({ showUnreadOnly: false, selectedTags: [] })
+    const [showArchived, setShowArchived] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     // Scroll to bottom on new message
@@ -56,6 +57,10 @@ export default function ChatPage() {
 
     // Aplicar filtros
     const filteredLeads = leads.filter(l => {
+        // Filtro de archivados (ocultar por defecto)
+        if (!showArchived && l.archived) return false
+        if (showArchived && !l.archived) return false
+
         // Filtro de búsqueda
         const matchesSearch = (l.full_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
             l.wa_id.includes(searchTerm)
@@ -92,6 +97,27 @@ export default function ChatPage() {
             }
         } catch (err) {
             console.error('Exception updating unread count:', err)
+            toast.error('Error inesperado')
+        }
+    }
+
+    // Función para archivar/desarchivar conversación
+    const toggleArchive = async (leadId: string, currentArchived: boolean) => {
+        const supabase = createClient()
+        try {
+            const { error } = await supabase
+                .from('leads')
+                .update({ archived: !currentArchived })
+                .eq('id', leadId)
+
+            if (error) {
+                console.error('Error archiving conversation:', error)
+                toast.error('Error al archivar')
+            } else {
+                toast.success(!currentArchived ? 'Conversación archivada' : 'Conversación desarchivada')
+            }
+        } catch (err) {
+            console.error('Exception archiving conversation:', err)
             toast.error('Error inesperado')
         }
     }
@@ -137,6 +163,24 @@ export default function ChatPage() {
 
                 {/* Filtros */}
                 <ChatFilters onFilterChange={setFilters} />
+
+                {/* Toggle para mostrar archivados */}
+                <div className="px-2 py-1 border-b">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowArchived(!showArchived)}
+                        className="w-full justify-start text-xs"
+                    >
+                        <Archive className="mr-2 h-3 w-3" />
+                        {showArchived ? 'Mostrar activos' : 'Mostrar archivados'}
+                        {!showArchived && leads.filter(l => l.archived).length > 0 && (
+                            <span className="ml-auto bg-muted text-muted-foreground px-1.5 py-0.5 rounded text-[10px]">
+                                {leads.filter(l => l.archived).length}
+                            </span>
+                        )}
+                    </Button>
+                </div>
 
                 <div className="flex-1 overflow-y-auto scroll-smooth-ios scrollbar-hide">
                     {loadingLeads ? (
@@ -224,13 +268,12 @@ export default function ChatPage() {
                                                 )}
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
-                                                onClick={(e) => {
+                                                onClick={async (e) => {
                                                     e.stopPropagation()
-                                                    // TODO: Implement archive
-                                                    console.log('Archive:', lead.id)
+                                                    await toggleArchive(lead.id, lead.archived)
                                                 }}
                                             >
-                                                <Archive className="mr-2 h-4 w-4" /> Archivar
+                                                <Archive className="mr-2 h-4 w-4" /> {lead.archived ? 'Desarchivar' : 'Archivar'}
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
