@@ -193,7 +193,17 @@ export function useChat() {
         // Subscribe to new messages for this lead
         const channel = supabase.channel(`chat_messages:${activeLeadId}`)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `lead_id=eq.${activeLeadId}` }, (payload) => {
-                setMessages(prev => [...prev, payload.new as Message])
+                const newMessage = payload.new as Message
+                // Remove any optimistic message and add the real one
+                setMessages(prev => {
+                    // Filter out temporary messages (optimistic inserts)
+                    const withoutTemp = prev.filter(m => !m.id.toString().startsWith('temp-'))
+                    // Check if message already exists (avoid duplicates)
+                    if (withoutTemp.some(m => m.id === newMessage.id)) {
+                        return withoutTemp
+                    }
+                    return [...withoutTemp, newMessage]
+                })
             })
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `lead_id=eq.${activeLeadId}` }, (payload) => {
                 setMessages(prev => prev.map(msg => msg.id === payload.new.id ? payload.new as Message : msg))
@@ -208,6 +218,23 @@ export function useChat() {
     // 3. Send Message Function
     const sendMessage = async (content: string, whatsappTemplateName?: string, whatsappTemplateLang?: string) => {
         if (!activeLeadId || !content.trim()) return
+
+        // Create optimistic message to show immediately
+        const optimisticMessage: Message = {
+            id: `temp-${Date.now()}`, // Temporary ID
+            lead_id: activeLeadId,
+            wa_message_id: null,
+            content: content,
+            type: whatsappTemplateName ? 'template' : 'text',
+            direction: 'outbound',
+            status: 'pending',
+            media_url: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        }
+
+        // Add message optimistically to the UI
+        setMessages(prev => [...prev, optimisticMessage])
 
         try {
             // Payload básico
@@ -231,20 +258,27 @@ export function useChat() {
             if (error) {
                 console.error('Error calling whatsapp-outbound:', error)
                 toast.error("No se pudo enviar el mensaje a WhatsApp")
+                // Remove optimistic message on error
+                setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id))
                 return
             }
 
             if (!data?.success) {
                 console.error('WhatsApp send failed:', data)
                 toast.error("Error al enviar mensaje a WhatsApp")
+                // Remove optimistic message on error
+                setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id))
                 return
             }
 
-            // Success - the Edge Function handles database insert and WhatsApp API call
+            // Success - the real message will come via the subscription
+            // The optimistic message will be replaced when the real one arrives
 
         } catch (err) {
             console.error('Exception sending message:', err)
             toast.error("Error inesperado al enviar mensaje")
+            // Remove optimistic message on error
+            setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id))
         }
     }
 
