@@ -121,24 +121,44 @@ export function useChat() {
     // 1.1 Global Message Listener for Notifications (New)
     useEffect(() => {
         const channel = supabase.channel('global_notifications')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: "direction=eq.inbound" }, async (payload) => {
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
                 const newMessage = payload.new as Message
 
-                // If the message is from the active lead and window is focused, maybe just sound?
-                // But for PWA, we usually want notification if app is in background.
+                // Update the lead in the list with new last_interaction time
+                setLeads(prev => {
+                    const updated = prev.map(lead => {
+                        if (lead.id === newMessage.lead_id) {
+                            return {
+                                ...lead,
+                                last_interaction: newMessage.created_at,
+                                // Increment unread_count only for inbound messages
+                                unread_count: newMessage.direction === 'inbound' && activeLeadId !== lead.id
+                                    ? (lead.unread_count || 0) + 1
+                                    : lead.unread_count
+                            }
+                        }
+                        return lead
+                    })
+                    // Re-sort by last_interaction (most recent first)
+                    return updated.sort((a, b) =>
+                        new Date(b.last_interaction).getTime() - new Date(a.last_interaction).getTime()
+                    )
+                })
 
-                // Ideally we check document.hidden or if activeLeadId !== newMessage.lead_id
-                const isHidden = document.hidden
-                const isOtherChat = activeLeadId !== newMessage.lead_id
+                // Show notification only for inbound messages
+                if (newMessage.direction === 'inbound') {
+                    const isHidden = document.hidden
+                    const isOtherChat = activeLeadId !== newMessage.lead_id
 
-                if (isHidden || isOtherChat) {
-                    playNotificationSound()
+                    if (isHidden || isOtherChat) {
+                        playNotificationSound()
 
-                    // Fetch lead name for better notification
-                    const { data: lead } = await supabase.from('leads').select('full_name').eq('id', newMessage.lead_id).single()
-                    const senderName = lead?.full_name || 'Nuevo Mensaje'
+                        // Fetch lead name for better notification
+                        const { data: lead } = await supabase.from('leads').select('full_name').eq('id', newMessage.lead_id).single()
+                        const senderName = lead?.full_name || 'Nuevo Mensaje'
 
-                    showNotification(`Mensaje de ${senderName}`, newMessage.content || '')
+                        showNotification(`Mensaje de ${senderName}`, newMessage.content || '')
+                    }
                 }
             })
             .subscribe()
