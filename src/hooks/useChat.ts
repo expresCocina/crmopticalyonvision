@@ -227,7 +227,7 @@ export function useChat() {
             content: content,
             type: whatsappTemplateName ? 'template' : 'text',
             direction: 'outbound',
-            status: 'pending',
+            status: 'sent',
             media_url: null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
