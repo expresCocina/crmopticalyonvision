@@ -143,6 +143,14 @@ serve(async (req) => {
                 components: []
             }
 
+            // DEBUG: Log template details
+            console.log('📋 Sending template message:', {
+                template_name,
+                template_lang: template_lang || 'es',
+                lead_id,
+                message_id
+            })
+
             // IMPORTANTE: Si la plantilla tiene una cabecera de tipo IMAGEN, necesitamos enviarla.
             // Asumimos que si hay media_url, es porque la plantilla requiere una imagen en el header.
             if (media_url) {
