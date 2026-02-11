@@ -269,15 +269,47 @@ serve(async (req) => {
             const imageId = message.image?.id
             caption = message.image?.caption || null
             if (imageId) {
-                // Download image from WhatsApp
+                // Download image from WhatsApp and upload to Supabase Storage
                 try {
+                    // Step 1: Get image URL from WhatsApp
                     const mediaResponse = await fetch(`https://graph.facebook.com/v24.0/${imageId}`, {
                         headers: { 'Authorization': `Bearer ${Deno.env.get('WHATSAPP_API_TOKEN')}` }
                     })
                     const mediaData = await mediaResponse.json()
-                    mediaUrl = mediaData.url
+                    const tempImageUrl = mediaData.url
+
+                    if (tempImageUrl) {
+                        // Step 2: Download the actual image
+                        const imageResponse = await fetch(tempImageUrl, {
+                            headers: { 'Authorization': `Bearer ${Deno.env.get('WHATSAPP_API_TOKEN')}` }
+                        })
+                        const imageBlob = await imageResponse.blob()
+                        const imageBuffer = await imageBlob.arrayBuffer()
+
+                        // Step 3: Upload to Supabase Storage
+                        const fileName = `whatsapp-images/${Date.now()}-${imageId}.jpg`
+                        const { data: uploadData, error: uploadError } = await supabase.storage
+                            .from('chat-media')
+                            .upload(fileName, imageBuffer, {
+                                contentType: imageBlob.type || 'image/jpeg',
+                                upsert: false
+                            })
+
+                        if (uploadError) {
+                            console.error('Error uploading image to storage:', uploadError)
+                            // Fallback to temporary URL if upload fails
+                            mediaUrl = tempImageUrl
+                        } else {
+                            // Get permanent public URL
+                            const { data: { publicUrl } } = supabase.storage
+                                .from('chat-media')
+                                .getPublicUrl(fileName)
+                            mediaUrl = publicUrl
+                            console.log('Image uploaded successfully:', publicUrl)
+                        }
+                    }
                 } catch (err) {
-                    console.error('Error downloading image:', err)
+                    console.error('Error downloading/uploading image:', err)
                 }
             }
         }
