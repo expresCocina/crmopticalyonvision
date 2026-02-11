@@ -79,7 +79,7 @@ serve(async (req) => {
         } else {
             const { data } = await supabase
                 .from('leads')
-                .select('id, wa_id')
+                .select('id, wa_id, name')
                 .eq('wa_id', wa_id)
                 .single()
             leadData = data
@@ -148,7 +148,8 @@ serve(async (req) => {
                 template_name,
                 template_lang: template_lang || 'es',
                 lead_id,
-                message_id
+                message_id,
+                lead_name: leadData.name
             })
 
             // IMPORTANTE: Si la plantilla tiene una cabecera de tipo IMAGEN, necesitamos enviarla.
@@ -162,6 +163,20 @@ serve(async (req) => {
                             image: {
                                 link: media_url
                             }
+                        }
+                    ]
+                })
+            }
+
+            // Agregar parámetros del body si la plantilla tiene variables
+            // Por ahora, enviamos el nombre del cliente como primer parámetro
+            if (leadData.name) {
+                whatsappPayload.template.components.push({
+                    type: 'body',
+                    parameters: [
+                        {
+                            type: 'text',
+                            text: leadData.name
                         }
                     ]
                 })
