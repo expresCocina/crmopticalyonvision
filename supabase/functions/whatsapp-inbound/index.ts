@@ -345,14 +345,24 @@ serve(async (req) => {
                 wa_id,
                 status: 'nuevo',
                 full_name: profileName,
-                bot_active: true
+                bot_active: true,
+                archived: false
             }).select('id, bot_active').single()
             if (insertError) throw insertError
             leadId = newLead.id
             botActive = newLead.bot_active
-        } else if (profileName && !lead.full_name) {
-            // Existing Lead without name: Update name
-            await supabase.from('leads').update({ full_name: profileName }).eq('id', leadId)
+        } else {
+            // Existing Lead: Update name if needed AND unarchive if archived
+            const updates: any = {}
+            if (profileName && !lead.full_name) {
+                updates.full_name = profileName
+            }
+            // Siempre desarchivar cuando llega un mensaje nuevo
+            updates.archived = false
+
+            if (Object.keys(updates).length > 0) {
+                await supabase.from('leads').update(updates).eq('id', leadId)
+            }
         }
 
         // Guardar mensaje entrante (con media_url si es imagen o audio)
