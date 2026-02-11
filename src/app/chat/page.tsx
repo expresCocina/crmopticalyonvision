@@ -13,6 +13,7 @@ import LeadTagManager from '@/components/chat/LeadTagManager'
 import { useLeadTags } from '@/hooks/useLeadTags'
 import LeadTag from '@/components/chat/LeadTag'
 import LeadTagsDisplay from '@/components/chat/LeadTagsDisplay'
+import { ChatFilters, ChatFilterState } from '@/components/chat/ChatFilters'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -34,6 +35,7 @@ export default function ChatPage() {
     const [input, setInput] = useState('')
     const [searchTerm, setSearchTerm] = useState('')
     const [pendingTemplate, setPendingTemplate] = useState<{ name: string, lang: string } | null>(null)
+    const [filters, setFilters] = useState<ChatFilterState>({ showUnreadOnly: false, selectedTags: [] })
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     // Scroll to bottom on new message
@@ -43,10 +45,26 @@ export default function ChatPage() {
 
     const activeLead = leads.find(l => l.id === activeLeadId)
 
-    const filteredLeads = leads.filter(l =>
-        (l.full_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        l.wa_id.includes(searchTerm)
-    )
+    // Aplicar filtros
+    const filteredLeads = leads.filter(l => {
+        // Filtro de búsqueda
+        const matchesSearch = (l.full_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            l.wa_id.includes(searchTerm)
+
+        if (!matchesSearch) return false
+
+        // Filtro de no leídos
+        if (filters.showUnreadOnly && l.unread_count === 0) return false
+
+        // Filtro por tags (si hay tags seleccionados, el lead debe tener al menos uno)
+        if (filters.selectedTags.length > 0) {
+            const leadTags = l.tags || []
+            const hasMatchingTag = filters.selectedTags.some(tag => leadTags.includes(tag))
+            if (!hasMatchingTag) return false
+        }
+
+        return true
+    })
 
     const handleSend = async (e?: React.FormEvent) => {
         e?.preventDefault()
@@ -86,6 +104,9 @@ export default function ChatPage() {
                         />
                     </div>
                 </div>
+
+                {/* Filtros */}
+                <ChatFilters onFilterChange={setFilters} />
 
                 <div className="flex-1 overflow-y-auto scroll-smooth-ios scrollbar-hide">
                     {loadingLeads ? (
