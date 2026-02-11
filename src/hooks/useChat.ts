@@ -16,16 +16,39 @@ export function useChat() {
     // 1. Fetch Leads (Conversations)
     useEffect(() => {
         const fetchLeads = async () => {
-            const { data, error } = await supabase
+            // Fetch leads with tags from lead_tags table
+            const { data: leadsData, error: leadsError } = await supabase
                 .from('leads')
                 .select('*')
                 .order('last_interaction', { ascending: false })
 
-            if (error) {
-                console.error('Error loading chats:', error)
-            } else {
-                setLeads(data || [])
+            if (leadsError) {
+                console.error('Error loading chats:', leadsError)
+                setLoadingLeads(false)
+                return
             }
+
+            // Fetch all tags
+            const { data: tagsData, error: tagsError } = await supabase
+                .from('lead_tags')
+                .select('lead_id, tag')
+
+            if (tagsError) {
+                console.error('Error loading tags:', tagsError)
+            }
+
+            // Merge tags into leads
+            const leadsWithTags = (leadsData || []).map(lead => {
+                const leadTags = (tagsData || [])
+                    .filter(t => t.lead_id === lead.id)
+                    .map(t => t.tag)
+                return {
+                    ...lead,
+                    tags: leadTags.length > 0 ? leadTags : lead.tags // Use lead_tags if available, fallback to lead.tags
+                }
+            })
+
+            setLeads(leadsWithTags)
             setLoadingLeads(false)
         }
 
