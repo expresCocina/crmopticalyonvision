@@ -13,6 +13,7 @@ import LeadTagManager from '@/components/chat/LeadTagManager'
 import { useLeadTags } from '@/hooks/useLeadTags'
 import LeadTag from '@/components/chat/LeadTag'
 import LeadTagsDisplay from '@/components/chat/LeadTagsDisplay'
+import { LastMessagePreview } from '@/components/chat/LastMessagePreview'
 import { ChatFilters, ChatFilterState } from '@/components/chat/ChatFilters'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -120,8 +121,8 @@ export default function ChatPage() {
                                     key={lead.id}
                                     onClick={() => setActiveLeadId(lead.id)}
                                     className={cn(
-                                        "w-full text-left p-3 md:p-4 hover:bg-muted/50 transition-colors flex gap-3 min-h-[60px] relative",
-                                        activeLeadId === lead.id && "bg-muted shadow-inner"
+                                        "w-full text-left p-3 hover:bg-accent/50 transition-colors flex gap-3 relative",
+                                        activeLeadId === lead.id && "bg-accent/70"
                                     )}
                                 >
                                     {/* Unread/New Indicator */}
@@ -150,15 +151,14 @@ export default function ChatPage() {
                                                 {lead.last_interaction && format(parseISO(lead.last_interaction), 'HH:mm')}
                                             </span>
                                         </div>
-                                        <div className="flex justify-between items-center">
-                                            <p className={cn(
-                                                "text-xs truncate flex-1",
-                                                lead.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"
-                                            )}>
-                                                {lead.unread_count > 0 ? `✨ ${lead.unread_count} mensaje${lead.unread_count > 1 ? 's' : ''} nuevo${lead.unread_count > 1 ? 's' : ''}` :
-                                                    lead.status === 'agendado' ? '📅 Cita Agendada' :
-                                                        lead.wa_id}
-                                            </p>
+                                        <div className="flex justify-between items-center gap-2">
+                                            <LastMessagePreview
+                                                leadId={lead.id}
+                                                className={cn(
+                                                    "text-xs truncate flex-1",
+                                                    lead.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                                                )}
+                                            />
                                             {lead.unread_count > 0 && (
                                                 <span className="ml-2 bg-green-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold min-w-[18px] text-center">
                                                     {lead.unread_count}
