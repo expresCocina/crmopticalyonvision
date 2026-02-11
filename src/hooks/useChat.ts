@@ -229,8 +229,8 @@ export function useChat() {
             direction: 'outbound',
             status: 'sent',
             media_url: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            caption: null,
+            created_at: new Date().toISOString()
         }
 
         // Add message optimistically to the UI
