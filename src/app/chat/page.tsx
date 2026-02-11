@@ -43,6 +43,8 @@ export default function ChatPage() {
 
     const [input, setInput] = useState('')
     const [searchTerm, setSearchTerm] = useState('')
+    const [searchingMessages, setSearchingMessages] = useState(false)
+    const [leadsWithMatchingMessages, setLeadsWithMatchingMessages] = useState<Set<string>>(new Set())
     const [pendingTemplate, setPendingTemplate] = useState<{ name: string, lang: string } | null>(null)
     const [filters, setFilters] = useState<ChatFilterState>({ showUnreadOnly: false, selectedTags: [] })
     const [showArchived, setShowArchived] = useState(false)
@@ -57,17 +59,53 @@ export default function ChatPage() {
 
     const activeLead = leads.find(l => l.id === activeLeadId)
 
+    // Búsqueda en mensajes cuando el término de búsqueda cambia
+    useEffect(() => {
+        const searchInMessages = async () => {
+            if (!searchTerm || searchTerm.length < 2) {
+                setLeadsWithMatchingMessages(new Set())
+                return
+            }
+
+            setSearchingMessages(true)
+            const supabase = createClient()
+
+            try {
+                const { data, error } = await supabase
+                    .from('messages')
+                    .select('lead_id')
+                    .ilike('content', `%${searchTerm}%`)
+                    .limit(100)
+
+                if (!error && data) {
+                    const matchingLeadIds = new Set(data.map(m => m.lead_id))
+                    setLeadsWithMatchingMessages(matchingLeadIds)
+                }
+            } catch (err) {
+                console.error('Error searching messages:', err)
+            } finally {
+                setSearchingMessages(false)
+            }
+        }
+
+        const debounceTimer = setTimeout(searchInMessages, 300)
+        return () => clearTimeout(debounceTimer)
+    }, [searchTerm])
+
     // Aplicar filtros
     const filteredLeads = leads.filter(l => {
         // Filtro de archivados (ocultar por defecto)
         if (!showArchived && l.archived) return false
         if (showArchived && !l.archived) return false
 
-        // Filtro de búsqueda
-        const matchesSearch = (l.full_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-            l.wa_id.includes(searchTerm)
+        // Filtro de búsqueda (nombre, teléfono O mensajes)
+        if (searchTerm) {
+            const matchesNameOrPhone = (l.full_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                l.wa_id.includes(searchTerm)
+            const matchesMessages = leadsWithMatchingMessages.has(l.id)
 
-        if (!matchesSearch) return false
+            if (!matchesNameOrPhone && !matchesMessages) return false
+        }
 
         // Filtro de no leídos
         if (filters.showUnreadOnly && l.unread_count === 0) return false
@@ -208,7 +246,7 @@ export default function ChatPage() {
                     <div className="relative">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="Buscar chat..."
+                            placeholder="Buscar en chats y mensajes..."
                             className="pl-8 h-9"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
