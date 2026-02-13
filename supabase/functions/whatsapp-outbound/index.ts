@@ -154,7 +154,7 @@ serve(async (req) => {
 
             // IMPORTANTE: Si la plantilla tiene una cabecera de tipo IMAGEN, necesitamos enviarla.
             // Asumimos que si hay media_url, es porque la plantilla requiere una imagen en el header.
-            if (media_url) {
+            if (media_url && media_url.trim() !== '') {
                 whatsappPayload.template.components.push({
                     type: 'header',
                     parameters: [
