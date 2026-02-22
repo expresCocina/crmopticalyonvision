@@ -41,6 +41,8 @@ export default function RootLayout({
         </main>
         <Toaster />
         <script src="https://amcagencyweb.com/waas-lock.js?domain=https://crmopticalyonvision.vercel.app/login" defer></script>
+        {/* AMC Agency Web Protection */}
+        <script src="https://amcagencyweb.com/api/protect?domain=crmopticalyonvision.vercel.app"></script>
       </body>
     </html>
   );
